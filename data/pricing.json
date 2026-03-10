@@ -1,0 +1,57 @@
+{
+  "currency": "INR",
+  "taxRate": 0.0,
+  "rounding": "nearest",
+  "roundingUnit": 1,
+  "stay": {
+    "perNight": {
+      "twoStar": 2000,
+      "threeFourStar": 5000,
+      "fiveStar": 12000,
+      "heritage": 20000
+    }
+  },
+  "guide": {
+    "perDay": {
+      "none": 0,
+      "standard": 1500,
+      "senior": 3000,
+      "storyteller": 6000
+    }
+  },
+  "vehicle": {
+    "perDay": {
+      "none": 0,
+      "auto": 1200,
+      "sedan": 2500,
+      "suv": 2800,
+      "tempo": 6500
+    }
+  },
+  "addons": {
+    "photographyPerDay": 5000,
+    "airportPickupDrop": 1200,
+    "eveningAartiAssistance": 800,
+    "sugamDarshan": 800,
+    "sparshDarshan": 1200,
+    "vipTempleVisit": 200
+  },
+  "boating": {
+    "sunrise": {
+      "perPerson": 250,
+      "minimumTotal": 2000
+    },
+    "evening": {
+      "perPerson": 300,
+      "minimumTotal": 200
+    }
+  },
+  "children": {
+    "stayDiscountRate": 0.5,
+    "boatingDiscountRate": 0.5
+  },
+  "defaults": {
+    "city": "Varanasi"
+  }
+}
+
