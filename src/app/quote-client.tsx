@@ -89,7 +89,8 @@ export default function QuoteClient() {
   const [quote, setQuote] = useState<QuoteResult | null>(null);
   const [itinerary, setItinerary] = useState<ItineraryDay[] | null>(null);
   const [openDay, setOpenDay] = useState<number | null>(1);
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   async function getQuote() {
     setLoading(true);
@@ -132,22 +133,6 @@ function toggleAddon(id: QuoteInput["addons"][number], enabled: boolean) {
   });
 }
 
-function updateDestinations(
-  current: QuoteInput["destinations"],
-  city: City,
-  enabled: boolean,
-): QuoteInput["destinations"] {
-  const has = current.includes(city);
-  if (enabled && !has) {
-    return [...current, city];
-  }
-  if (!enabled && has) {
-    const next = current.filter((c) => c !== city);
-    return next.length === 0 ? ["varanasi"] : next;
-  }
-  return current;
-}
-
 function fullCustomisationWhatsAppLink() {
   const phone = "919999999999"; // TODO: replace with your real Wandermate WhatsApp number
   const text =
@@ -169,101 +154,55 @@ function fullCustomisationWhatsAppLink() {
 
         {step === 1 && (
           <>
-        <div className="row">
-          <div>
-            <label>Start your journey from</label>
-            <select
-              value={input.startCity}
-              onChange={(e) => set("startCity", e.target.value as City)}
-            >
-              <option value="varanasi">Varanasi</option>
-              <option value="ayodhya">Ayodhya</option>
-              <option value="prayagraj">Prayagraj</option>
-              <option value="vindhyachal">Vindhyachal</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div>
-            <label>End your journey at</label>
-            <select value={input.endCity} onChange={(e) => set("endCity", e.target.value as City)}>
-              <option value="varanasi">Varanasi</option>
-              <option value="ayodhya">Ayodhya</option>
-              <option value="prayagraj">Prayagraj</option>
-              <option value="vindhyachal">Vindhyachal</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-        </div>
-
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 4 }}>
           <label>Places you want to cover</label>
-          <div className="row">
-            <div>
-              <label style={{ marginBottom: 4 }}>Core cities</label>
-              <div className="toggleRow">
-                <span>Varanasi</span>
-                <input
-                  type="checkbox"
-                  checked={input.destinations.includes("varanasi")}
-                  onChange={(e) =>
-                    set(
-                      "destinations",
-                      updateDestinations(input.destinations, "varanasi", e.target.checked),
-                    )
-                  }
-                  style={{ width: 18, height: 18 }}
-                />
-              </div>
-              <div className="toggleRow" style={{ marginTop: 6 }}>
-                <span>Ayodhya</span>
-                <input
-                  type="checkbox"
-                  checked={input.destinations.includes("ayodhya")}
-                  onChange={(e) =>
-                    set(
-                      "destinations",
-                      updateDestinations(input.destinations, "ayodhya", e.target.checked),
-                    )
-                  }
-                  style={{ width: 18, height: 18 }}
-                />
-              </div>
-            </div>
-            <div>
-              <label style={{ marginBottom: 4 }}>More cities</label>
-              <div className="toggleRow">
-                <span>Prayagraj</span>
-                <input
-                  type="checkbox"
-                  checked={input.destinations.includes("prayagraj")}
-                  onChange={(e) =>
-                    set(
-                      "destinations",
-                      updateDestinations(input.destinations, "prayagraj", e.target.checked),
-                    )
-                  }
-                  style={{ width: 18, height: 18 }}
-                />
-              </div>
-              <div className="toggleRow" style={{ marginTop: 6 }}>
-                <span>Vindhyachal</span>
-                <input
-                  type="checkbox"
-                  checked={input.destinations.includes("vindhyachal")}
-                  onChange={(e) =>
-                    set(
-                      "destinations",
-                      updateDestinations(input.destinations, "vindhyachal", e.target.checked),
-                    )
-                  }
-                  style={{ width: 18, height: 18 }}
-                />
-              </div>
-            </div>
+          <div className="toggleRow" style={{ marginTop: 6 }}>
+            <span>Varanasi (always included)</span>
+          </div>
+          <div className="toggleRow" style={{ marginTop: 6 }}>
+            <span>Ayodhya</span>
+            <input
+              type="checkbox"
+              checked={input.destinations.includes("ayodhya")}
+              onChange={(e) => {
+                const enabled = e.target.checked;
+                set("destinations", enabled
+                  ? Array.from(new Set([...input.destinations, "ayodhya"]))
+                  : input.destinations.filter((c) => c !== "ayodhya"));
+              }}
+              style={{ width: 18, height: 18 }}
+            />
+          </div>
+          <div className="toggleRow" style={{ marginTop: 6 }}>
+            <span>Prayagraj</span>
+            <input
+              type="checkbox"
+              checked={input.destinations.includes("prayagraj")}
+              onChange={(e) => {
+                const enabled = e.target.checked;
+                set("destinations", enabled
+                  ? Array.from(new Set([...input.destinations, "prayagraj"]))
+                  : input.destinations.filter((c) => c !== "prayagraj"));
+              }}
+              style={{ width: 18, height: 18 }}
+            />
+          </div>
+          <div className="toggleRow" style={{ marginTop: 6 }}>
+            <span>Vindhyachal</span>
+            <input
+              type="checkbox"
+              checked={input.destinations.includes("vindhyachal")}
+              onChange={(e) => {
+                const enabled = e.target.checked;
+                set("destinations", enabled
+                  ? Array.from(new Set([...input.destinations, "vindhyachal"]))
+                  : input.destinations.filter((c) => c !== "vindhyachal"));
+              }}
+              style={{ width: 18, height: 18 }}
+            />
           </div>
           <div className="footerNote">
-            Varanasi is selected by default. Add Ayodhya, Prayagraj, and Vindhyachal if this is a
-            multi-city trip.
+            You can add Ayodhya, Prayagraj and Vindhyachal on top of Varanasi for a multi-city trip.
           </div>
         </div>
 
@@ -314,29 +253,6 @@ function fullCustomisationWhatsAppLink() {
           <>
         <div className="row" style={{ marginTop: 12 }}>
           <div>
-            <label>Adults</label>
-            <input
-              type="number"
-              min={1}
-              max={50}
-              value={input.adults}
-              onChange={(e) => set("adults", Number(e.target.value))}
-            />
-          </div>
-          <div>
-            <label>Children</label>
-            <input
-              type="number"
-              min={0}
-              max={50}
-              value={input.children}
-              onChange={(e) => set("children", Number(e.target.value))}
-            />
-          </div>
-        </div>
-
-        <div className="row" style={{ marginTop: 12 }}>
-          <div>
             <label>Stay type</label>
             <select value={input.stayTier} onChange={(e) => set("stayTier", e.target.value as any)}>
               <option value="twoStar">2 star</option>
@@ -382,6 +298,8 @@ function fullCustomisationWhatsAppLink() {
           </select>
         </div>
 
+        {step === 3 && (
+          <>
         <div style={{ marginTop: 12 }}>
           <label>Optional add-ons</label>
           <div className="row">
@@ -455,23 +373,22 @@ function fullCustomisationWhatsAppLink() {
         </div>
           </>
         )}
-
         <div className="actions" style={{ marginTop: 16 }}>
-          {step === 2 && (
+          {step > 1 && (
             <button
               className="secondary"
-              onClick={() => setStep(1)}
+              onClick={() => setStep((prev) => (prev > 1 ? ((prev - 1) as 1 | 2 | 3) : prev))}
               disabled={loading}
             >
               Back
             </button>
           )}
-          {step === 1 ? (
+          {step < 3 ? (
             <button
-              onClick={() => setStep(2)}
+              onClick={() => setStep((prev) => (prev < 3 ? ((prev + 1) as 1 | 2 | 3) : prev))}
               disabled={loading}
             >
-              Next: stay & services
+              {step === 1 ? "Next: stay & services" : "Next: add-ons"}
             </button>
           ) : (
             <button onClick={getQuote} disabled={loading}>
@@ -533,44 +450,56 @@ function fullCustomisationWhatsAppLink() {
               <strong>{formatINR(quote.total, quote.currency)}</strong>
             </div>
 
-            {(() => {
-              const coreItems =
-                quote.items.filter((i) => i.code !== "addons" && i.code !== "subtotal") ?? [];
-              const addonItems = quote.items.filter((i) => i.code === "addons") ?? [];
-              return (
-                <>
-                  <ul className="list">
-                    {coreItems.map((i, idx) => (
-                      <li key={`core-${idx}`}>
-                        <span>{i.label}</span>
-                        <div>{formatINR(i.amount, quote.currency)}</div>
+            <div className="actions" style={{ marginTop: 8 }}>
+              <button
+                className="secondary"
+                style={{ width: "100%", fontSize: 12, padding: "6px 10px" }}
+                onClick={() => setShowBreakdown((prev) => !prev)}
+              >
+                {showBreakdown ? "Hide full price breakup" : "Show full price breakup"}
+              </button>
+            </div>
+
+            {showBreakdown ? (
+              (() => {
+                const coreItems =
+                  quote.items.filter((i) => i.code !== "addons" && i.code !== "subtotal") ?? [];
+                const addonItems = quote.items.filter((i) => i.code === "addons") ?? [];
+                return (
+                  <>
+                    <ul className="list">
+                      {coreItems.map((i, idx) => (
+                        <li key={`core-${idx}`}>
+                          <span>{i.label}</span>
+                          <div>{formatINR(i.amount, quote.currency)}</div>
+                        </li>
+                      ))}
+                      <li>
+                        <span>Total</span>
+                        <div>
+                          <strong>{formatINR(quote.total, quote.currency)}</strong>
+                        </div>
                       </li>
-                    ))}
-                    <li>
-                      <span>Total</span>
-                      <div>
-                        <strong>{formatINR(quote.total, quote.currency)}</strong>
+                    </ul>
+                    {addonItems.length > 0 ? (
+                      <div style={{ marginTop: 8 }}>
+                        <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
+                          Add-ons selected
+                        </div>
+                        <ul className="list">
+                          {addonItems.map((i, idx) => (
+                            <li key={`addon-${idx}`}>
+                              <span>{i.label}</span>
+                              <div>{formatINR(i.amount, quote.currency)}</div>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                    </li>
-                  </ul>
-                  {addonItems.length > 0 ? (
-                    <div style={{ marginTop: 8 }}>
-                      <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
-                        Add-ons selected
-                      </div>
-                      <ul className="list">
-                        {addonItems.map((i, idx) => (
-                          <li key={`addon-${idx}`}>
-                            <span>{i.label}</span>
-                            <div>{formatINR(i.amount, quote.currency)}</div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                </>
-              );
-            })()}
+                    ) : null}
+                  </>
+                );
+              })()
+            ) : null}
 
             <div className="actions" style={{ marginTop: 12 }}>
               <button
