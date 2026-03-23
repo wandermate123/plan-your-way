@@ -933,7 +933,7 @@ function chatSupportWhatsAppLink() {
           {step < 3 ? (
             <button
               onClick={handleStepNext}
-              disabled={loading || (step === 1 && !step1Valid) || (step === 2 && !step2Valid)}
+              disabled={loading || (step === 2 && !step2Valid)}
             >
               {step === 2 ? "Next: Add-ons & finalise" : "Next: Define your experiences"}
             </button>
