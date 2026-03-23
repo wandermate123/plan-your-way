@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 function makeWhatsAppLink(message: string) {
-  const phone = "919999999999"; // TODO: replace with your real Wandermate WhatsApp number
+  const phone = "919214313559"; // TODO: replace with your real Wandermate WhatsApp number
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 

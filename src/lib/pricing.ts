@@ -110,59 +110,26 @@ export function computeQuote(input: QuoteInput, pricing: PricingConfig): QuoteRe
     });
   }
 
+  const addonLabels: Record<string, string> = {
+    photographyPerDay: "Professional Photography",
+    sugamDarshan: "Sugam Darshan",
+    spiritualTriangle: "Spiritual Triangle Add-ons",
+    heritageWalk: "Heritage Walk",
+    silkWalk: "Silk Walk",
+  };
   let addonsAmount = 0;
   if (input.addons && input.addons.length > 0) {
     for (const addon of input.addons) {
-      if (addon === "photographyPerDay") {
-        const price = pricing.addons.photographyPerDay * days;
-        addonsAmount += price;
-        items.push({
-          code: "addons",
-          label: "Add-on: Photography (per day)",
-          amount: price,
-          meta: { days, perDay: pricing.addons.photographyPerDay },
-        });
-      } else if (addon === "airportPickupDrop") {
-        const price = pricing.addons.airportPickupDrop;
-        addonsAmount += price;
-        items.push({
-          code: "addons",
-          label: "Add-on: Airport pick-up & drop",
-          amount: price,
-        });
-      } else if (addon === "eveningAartiAssistance") {
-        const price = pricing.addons.eveningAartiAssistance;
-        addonsAmount += price;
-        items.push({
-          code: "addons",
-          label: "Add-on: Evening aarti assistance",
-          amount: price,
-        });
-      } else if (addon === "sugamDarshan") {
-        const price = pricing.addons.sugamDarshan;
-        addonsAmount += price;
-        items.push({
-          code: "addons",
-          label: "Add-on: Sugam darshan",
-          amount: price,
-        });
-      } else if (addon === "sparshDarshan") {
-        const price = pricing.addons.sparshDarshan;
-        addonsAmount += price;
-        items.push({
-          code: "addons",
-          label: "Add-on: Sparsh darshan",
-          amount: price,
-        });
-      } else if (addon === "vipTempleVisit") {
-        const price = pricing.addons.vipTempleVisit;
-        addonsAmount += price;
-        items.push({
-          code: "addons",
-          label: "Add-on: VIP temple visit slot",
-          amount: price,
-        });
-      }
+      const rate = pricing.addons[addon as keyof typeof pricing.addons];
+      if (typeof rate !== "number") continue;
+      const price = addon === "photographyPerDay" ? rate * days : rate;
+      addonsAmount += price;
+      items.push({
+        code: "addons",
+        label: `Add-on: ${addonLabels[addon] ?? addon}`,
+        amount: price,
+        meta: addon === "photographyPerDay" ? { days, perDay: rate } : undefined,
+      });
     }
   }
 

@@ -7,11 +7,10 @@ export const GuideTypeSchema = z.enum(["none", "standard", "senior", "storytelle
 export const CitySchema = z.enum(["varanasi", "ayodhya", "prayagraj", "vindhyachal", "other"]);
 export const AddonIdSchema = z.enum([
   "photographyPerDay",
-  "airportPickupDrop",
-  "eveningAartiAssistance",
   "sugamDarshan",
-  "sparshDarshan",
-  "vipTempleVisit",
+  "spiritualTriangle",
+  "heritageWalk",
+  "silkWalk",
 ]);
 
 export const QuoteInputSchema = z.object({
@@ -22,6 +21,7 @@ export const QuoteInputSchema = z.object({
   departureDate: z.string().min(1),
   adults: z.number().int().min(1).max(50),
   children: z.number().int().min(0).max(50),
+  childrenAges: z.array(z.number().int().min(0).max(17)).optional(),
   stayTier: StayTierSchema,
   guideType: GuideTypeSchema,
   vehicleType: VehicleTypeSchema,
@@ -47,11 +47,10 @@ export const PricingConfigSchema = z.object({
   }),
   addons: z.object({
     photographyPerDay: z.number().nonnegative(),
-    airportPickupDrop: z.number().nonnegative(),
-    eveningAartiAssistance: z.number().nonnegative(),
     sugamDarshan: z.number().nonnegative(),
-    sparshDarshan: z.number().nonnegative(),
-    vipTempleVisit: z.number().nonnegative(),
+    spiritualTriangle: z.number().nonnegative(),
+    heritageWalk: z.number().nonnegative(),
+    silkWalk: z.number().nonnegative(),
   }),
   boating: z.object({
     sunrise: z.object({

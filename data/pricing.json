@@ -30,11 +30,10 @@
   },
   "addons": {
     "photographyPerDay": 5000,
-    "airportPickupDrop": 1200,
-    "eveningAartiAssistance": 800,
     "sugamDarshan": 800,
-    "sparshDarshan": 1200,
-    "vipTempleVisit": 200
+    "spiritualTriangle": 1500,
+    "heritageWalk": 1200,
+    "silkWalk": 1800
   },
   "boating": {
     "sunrise": {
