@@ -31,9 +31,16 @@ export const QuoteInputSchema = z.object({
 
 export type QuoteInput = z.infer<typeof QuoteInputSchema>;
 
+/** Stored as decimal (0.05 = 5%) or legacy percent in JSON (5 = 5%). */
+export const TaxRateSchema = z
+  .number()
+  .min(0)
+  .max(100)
+  .transform((n) => (n > 1 ? n / 100 : n));
+
 export const PricingConfigSchema = z.object({
   currency: z.string().min(1),
-  taxRate: z.number().min(0).max(1),
+  taxRate: TaxRateSchema,
   rounding: z.enum(["nearest", "up", "down"]),
   roundingUnit: z.number().int().min(1),
   stay: z.object({
@@ -73,3 +80,41 @@ export const PricingConfigSchema = z.object({
 
 export type PricingConfig = z.infer<typeof PricingConfigSchema>;
 
+export const BookingSummarySchema = z.object({
+  total: z.string().min(1).max(64),
+  currency: z.string().min(1).max(16),
+  arrivalDate: z.string().min(1).max(32),
+  departureDate: z.string().min(1).max(32),
+  adults: z.string().min(1).max(8),
+  children: z.string().max(8).optional(),
+});
+
+export const BookingRequestSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  phone: z.string().trim().min(1).max(40),
+  email: z.preprocess(
+    (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+    z.string().email().max(320).optional(),
+  ),
+  notes: z.preprocess(
+    (v) => (v == null || v === undefined ? "" : v),
+    z.string().max(2000),
+  ),
+  summary: BookingSummarySchema,
+});
+
+export type BookingRequest = z.infer<typeof BookingRequestSchema>;
+
+export const BookingRequestParsedSchema = BookingRequestSchema.superRefine((data, ctx) => {
+  const d = data.phone.replace(/\D/g, "");
+  const ok =
+    (d.length >= 12 && d.startsWith("91") && d.slice(-10).length === 10) ||
+    (d.length >= 10 && d.slice(-10).length === 10);
+  if (!ok) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Enter a valid phone number (at least 10 digits).",
+      path: ["phone"],
+    });
+  }
+});

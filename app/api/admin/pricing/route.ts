@@ -1,38 +1,47 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { readPricingConfig, writePricingConfig } from "@/lib/storage";
 import { PricingConfigSchema } from "@/lib/validation";
 
-function isAuthorized(req: Request): boolean {
-  const token = process.env.ADMIN_TOKEN ?? "changeme";
-  const headerToken = req.headers.get("x-admin-token");
-  if (headerToken && headerToken === token) return true;
-  const url = new URL(req.url);
-  const queryToken = url.searchParams.get("token");
-  return queryToken === token;
+function unauthorized() {
+  return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+}
+
+function authHeaderValid(req: Request): boolean {
+  const secret = process.env.ADMIN_PRICING_SECRET?.trim();
+  if (!secret) return false;
+  const h = req.headers.get("authorization");
+  if (!h?.startsWith("Bearer ")) return false;
+  return h.slice(7) === secret;
 }
 
 export async function GET(req: Request) {
-  if (!isAuthorized(req)) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (!authHeaderValid(req)) return unauthorized();
+  try {
+    const pricing = await readPricingConfig();
+    return NextResponse.json({ ok: true, pricing });
+  } catch {
+    return NextResponse.json({ ok: false, error: "Failed to read pricing" }, { status: 500 });
   }
-  const pricing = await readPricingConfig();
-  return NextResponse.json({ ok: true, pricing });
 }
 
 export async function PUT(req: Request) {
-  if (!isAuthorized(req)) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-  }
+  if (!authHeaderValid(req)) return unauthorized();
   try {
     const body = await req.json();
-    const pricing = PricingConfigSchema.parse(body);
-    await writePricingConfig(pricing);
-    return NextResponse.json({ ok: true, pricing });
+    const next = PricingConfigSchema.parse(body);
+    await writePricingConfig(next);
+    return NextResponse.json({ ok: true });
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json(
+        { ok: false, error: err.issues.map((i) => i.message).join("; ") },
+        { status: 400 },
+      );
+    }
     return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "Invalid pricing" },
+      { ok: false, error: err instanceof Error ? err.message : "Invalid request" },
       { status: 400 },
     );
   }
 }
-

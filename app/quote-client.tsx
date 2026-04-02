@@ -963,8 +963,7 @@ function chatSupportWhatsAppLink() {
         {error ? <div className="error">{error}</div> : null}
 
         <div className="footerNote">
-          Pricing is configurable by you. For “exact price”, open <a href="/admin">Admin</a> and set
-          your real hotel/vehicle/guide/boat rates + tax/rounding.
+          Your quote reflects our current published rates. For changes or a confirmed total, use WhatsApp below.
         </div>
         <div className="actions" style={{ marginTop: 8 }}>
           <a

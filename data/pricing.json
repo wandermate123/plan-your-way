@@ -1,12 +1,12 @@
 {
   "currency": "INR",
-  "taxRate": 0.0,
+  "taxRate": 5.0,
   "rounding": "nearest",
   "roundingUnit": 1,
   "stay": {
     "perNight": {
       "twoStar": 2000,
-      "threeFourStar": 5000,
+      "threeFourStar": 6000,
       "fiveStar": 12000,
       "heritage": 20000
     }
@@ -30,23 +30,23 @@
   },
   "addons": {
     "photographyPerDay": 5000,
-    "sugamDarshan": 800,
+    "sugamDarshan": 500,
     "spiritualTriangle": 1500,
-    "heritageWalk": 1200,
-    "silkWalk": 1800
+    "heritageWalk": 2000,
+    "silkWalk": 800
   },
   "boating": {
     "sunrise": {
       "perPerson": 250,
-      "minimumTotal": 2000
+      "minimumTotal": 2500
     },
     "evening": {
       "perPerson": 300,
-      "minimumTotal": 200
+      "minimumTotal": 2500
     }
   },
   "children": {
-    "stayDiscountRate": 0.5,
+    "stayDiscountRate": 0,
     "boatingDiscountRate": 0.5
   },
   "defaults": {

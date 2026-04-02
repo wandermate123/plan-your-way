@@ -22,9 +22,11 @@ export default function BookPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
-   const [submitting, setSubmitting] = useState(false);
-   const [submitted, setSubmitted] = useState(false);
-   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [bookingId, setBookingId] = useState<string | null>(null);
+  const [duplicateBooking, setDuplicateBooking] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -82,6 +84,8 @@ export default function BookPage() {
     if (!canSubmit || !summary) return;
     setSubmitting(true);
     setSubmitted(false);
+    setBookingId(null);
+    setDuplicateBooking(false);
     setSubmitError(null);
     try {
       const res = await fetch("/api/booking", {
@@ -98,6 +102,8 @@ export default function BookPage() {
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error ?? "Request failed");
       setSubmitted(true);
+      setBookingId(typeof data.bookingId === "string" ? data.bookingId : null);
+      setDuplicateBooking(data.duplicate === true);
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -150,7 +156,7 @@ export default function BookPage() {
                 padding: 12,
                 borderRadius: 12,
                 border: "1px solid var(--border)",
-                background: "rgba(0,0,0,.18)",
+                background: "#f1f4f9",
                 color: "var(--text)",
                 fontFamily:
                   "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
@@ -184,9 +190,19 @@ export default function BookPage() {
           </div>
 
           {submitted ? (
-            <div className="footerNote" style={{ color: "#7dffa4" }}>
-              Your booking details have been submitted on the website. Next, connect your preferred
-              online payment method here (UPI / card / gateway) so guests can pay instantly.
+            <div className="footerNote" style={{ color: "#0d7a4f", fontWeight: 600 }}>
+              Your booking details have been saved
+              {bookingId ? (
+                <>
+                  {" "}
+                  (reference <strong>{bookingId}</strong>)
+                </>
+              ) : null}
+              . Next, connect your preferred online payment method here (UPI / card / gateway) so
+              guests can pay instantly.
+              {duplicateBooking ? (
+                <span className="muted"> This matches an earlier submission with the same phone and dates.</span>
+              ) : null}
             </div>
           ) : (
             <div className="footerNote">

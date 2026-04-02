@@ -1,11 +1,14 @@
 :root{
-  --bg:#0b1220;
-  --card:#111b31;
-  --muted:#a7b0c3;
-  --text:#eaf0ff;
-  --border:rgba(255,255,255,.10);
-  --primary:#5b8cff;
-  --danger:#ff6b6b;
+  --bg:#ffffff;
+  --bg-soft:#f4f6fa;
+  --card:#ffffff;
+  --muted:#5c6473;
+  --text:#142032;
+  --border:rgba(20,32,50,.12);
+  --primary:#3b6fd9;
+  --danger:#dc2626;
+  --surface:rgba(20,32,50,.04);
+  --surface-hover:rgba(20,32,50,.07);
 }
 
 *{box-sizing:border-box}
@@ -13,13 +16,7 @@ html,body{height:100%}
 body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-  background:
-    linear-gradient(180deg, rgba(5,10,25,.92), rgba(4,8,18,.98)),
-    radial-gradient(1200px 600px at 15% 10%, rgba(91,140,255,.30), transparent 55%),
-    radial-gradient(900px 500px at 80% 20%, rgba(97,255,188,.12), transparent 55%);
-  background-size: cover, auto, auto;
-  background-position: center top, 15% 10%, 80% 20%;
-  background-attachment: fixed;
+  background:var(--bg);
   color:var(--text);
   -webkit-font-smoothing:antialiased;
 }
@@ -29,24 +26,22 @@ a{color:inherit}
 .header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
 .brand h1{font-size:22px;line-height:1.2;margin:0 0 6px}
 .brand p{margin:0;color:var(--muted);font-size:14px}
-.pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);padding:8px 10px;border-radius:999px;background:rgba(255,255,255,.04);color:var(--muted);font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);padding:8px 10px;border-radius:999px;background:var(--surface);color:var(--muted);font-size:13px}
 .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
 @media (max-width: 900px){.grid{grid-template-columns:1fr}}
 .card{
-  background:radial-gradient(circle at top left, rgba(91,140,255,.18), transparent 55%) border-box,
-             rgba(17,27,49,.88);
+  background:linear-gradient(180deg, #ffffff 0%, #fafbfd 100%);
   border:1px solid var(--border);
   border-radius:16px;
   padding:16px;
-  box-shadow:0 18px 45px rgba(0,0,0,.45);
-  backdrop-filter:blur(26px);
+  box-shadow:0 4px 24px rgba(20,32,50,.08);
   transition:transform .18s ease-out, box-shadow .18s ease-out, border-color .18s ease-out, background .18s ease-out;
   animation:cardFadeUp .4s ease-out both;
 }
 .card:hover{
-  transform:translateY(-3px);
-  box-shadow:0 24px 60px rgba(0,0,0,.6);
-  border-color:rgba(91,140,255,.55);
+  transform:translateY(-2px);
+  box-shadow:0 12px 40px rgba(20,32,50,.12);
+  border-color:rgba(59,111,217,.35);
 }
 .card h2{margin:0 0 12px;font-size:16px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -58,15 +53,15 @@ input,select{
   padding:10px 12px;
   border-radius:12px;
   border:1px solid var(--border);
-  background:rgba(0,0,0,.18);
+  background:#f1f4f9;
   color:var(--text);
   outline:none;
   transition:border-color .15s ease-out, box-shadow .15s ease-out, background .15s ease-out, transform .08s ease-out;
 }
 input:focus,select:focus{
-  border-color:rgba(91,140,255,.85);
-  box-shadow:0 0 0 3px rgba(91,140,255,.3);
-  background:rgba(0,0,0,.26);
+  border-color:rgba(59,111,217,.65);
+  box-shadow:0 0 0 3px rgba(59,111,217,.18);
+  background:#ffffff;
   transform:translateY(-1px);
 }
 .toggleRow{
@@ -77,29 +72,29 @@ input:focus,select:focus{
   padding:10px 12px;
   border:1px solid var(--border);
   border-radius:12px;
-  background:rgba(0,0,0,.12);
+  background:var(--surface);
   transition:border-color .15s ease-out, background .15s ease-out, transform .08s ease-out;
 }
 .toggleRow:hover{
-  border-color:rgba(91,140,255,.45);
-  background:rgba(10,18,40,.8);
+  border-color:rgba(59,111,217,.35);
+  background:rgba(59,111,217,.06);
   transform:translateY(-1px);
 }
 .toggleRow span{color:var(--muted);font-size:13px}
 .actions{display:flex;gap:10px;align-items:center;margin-top:12px}
 button{
   cursor:pointer;
-  border:1px solid rgba(91,140,255,.55);
-  background:linear-gradient(180deg, rgba(91,140,255,.95), rgba(91,140,255,.72));
-  color:#071027;
+  border:1px solid rgba(59,111,217,.45);
+  background:linear-gradient(180deg, #4a7ee8, #3b6fd9);
+  color:#ffffff;
   font-weight:700;
   padding:10px 12px;
   border-radius:12px;
   transition:transform .1s ease-out, box-shadow .1s ease-out, background .12s ease-out, border-color .12s ease-out, opacity .12s ease-out;
-  box-shadow:0 10px 22px rgba(0,0,0,.45);
+  box-shadow:0 4px 14px rgba(59,111,217,.35);
 }
 button.secondary{
-  background:rgba(255,255,255,.06);
+  background:var(--surface);
   border:1px solid var(--border);
   color:var(--text);
   font-weight:600;
@@ -107,11 +102,11 @@ button.secondary{
 }
 button:hover:not(:disabled){
   transform:translateY(-1px);
-  box-shadow:0 16px 30px rgba(0,0,0,.55);
+  box-shadow:0 8px 22px rgba(59,111,217,.3);
 }
 button:active:not(:disabled){
   transform:translateY(0);
-  box-shadow:0 6px 16px rgba(0,0,0,.55);
+  box-shadow:0 3px 10px rgba(59,111,217,.25);
   opacity:.92;
 }
 button:disabled{
@@ -159,7 +154,7 @@ button:disabled{
 .stepProgressBar {
   flex: 1;
   height: 6px;
-  background: rgba(255,255,255,.08);
+  background: var(--surface);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -183,7 +178,7 @@ button:disabled{
 }
 @media (max-width: 700px) { .step1Columns { grid-template-columns: 1fr; } }
 .step1Section {
-  background: rgba(0,0,0,.2);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
@@ -196,7 +191,7 @@ button:disabled{
   background: rgba(91,140,255,.15);
   border-bottom: 1px solid var(--border);
 }
-.step1SectionHeader.alt { background: rgba(139,92,56,.2); }
+.step1SectionHeader.alt { background: rgba(179,90,56,.12); }
 .step1SectionBody { padding: 14px; }
 .step1Dates {
   display: flex;
@@ -235,7 +230,7 @@ button:disabled{
   padding: 14px 10px;
   border: 2px solid var(--border);
   border-radius: 12px;
-  background: rgba(0,0,0,.15);
+  background: var(--bg);
   cursor: pointer;
   transition: border-color .15s, background .15s;
 }
@@ -322,7 +317,7 @@ button:disabled{
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: rgba(0,0,0,.12);
+  background: var(--bg);
   cursor: pointer;
   margin-bottom: 8px;
   transition: border-color .15s, background .15s;
@@ -349,7 +344,7 @@ button:disabled{
 }
 @media (max-width: 800px) { .step2Grid { grid-template-columns: 1fr; } }
 .step2Section {
-  background: rgba(0,0,0,.2);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
@@ -362,8 +357,8 @@ button:disabled{
   background: rgba(91,140,255,.15);
   border-bottom: 1px solid var(--border);
 }
-.step2SectionHeader.terracotta { background: rgba(179,90,56,.25); }
-.step2SectionHeader.navy { background: rgba(26,60,90,.4); }
+.step2SectionHeader.terracotta { background: rgba(179,90,56,.12); }
+.step2SectionHeader.navy { background: rgba(30,64,120,.1); }
 .step2SectionBody { padding: 14px; }
 .step2OptionCard {
   display: flex;
@@ -372,7 +367,7 @@ button:disabled{
   padding: 12px 14px;
   border: 2px solid var(--border);
   border-radius: 12px;
-  background: rgba(0,0,0,.15);
+  background: var(--bg);
   cursor: pointer;
   margin-bottom: 10px;
   transition: border-color .15s, background .15s;
@@ -418,7 +413,7 @@ button:disabled{
   padding: 14px;
   border: 2px solid var(--border);
   border-radius: 12px;
-  background: rgba(0,0,0,.15);
+  background: var(--bg);
   cursor: pointer;
   transition: border-color .15s, background .15s;
 }
@@ -487,8 +482,8 @@ button:disabled{
   letter-spacing: 0.04em;
   border-bottom: 1px solid var(--border);
 }
-.finalSectionHeader.terracotta { background: rgba(179,90,56,.25); }
-.finalSectionHeader.navy { background: rgba(26,60,90,.4); }
+.finalSectionHeader.terracotta { background: rgba(179,90,56,.12); }
+.finalSectionHeader.navy { background: rgba(30,64,120,.1); }
 .finalSectionBody { padding: 16px; }
 .finalOverviewList { display: flex; flex-direction: column; gap: 10px; }
 .finalOverviewItem {
@@ -583,7 +578,7 @@ button:disabled{
   padding: 14px 12px;
   border: 2px solid var(--border);
   border-radius: 12px;
-  background: rgba(0,0,0,.2);
+  background: var(--surface);
   color: var(--text);
   font-size: 12px;
   font-weight: 600;
@@ -627,20 +622,20 @@ button:disabled{
   text-align: center;
   text-decoration: none;
   transition: transform .1s, box-shadow .1s;
-  background: linear-gradient(180deg, rgba(91,140,255,.95), rgba(91,140,255,.72));
-  color: #071027;
-  box-shadow: 0 10px 22px rgba(0,0,0,.45);
+  background: linear-gradient(180deg, #4a7ee8, #3b6fd9);
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(59,111,217,.35);
 }
 .finalBookBtn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 14px 28px rgba(0,0,0,.5);
+  box-shadow: 0 8px 24px rgba(59,111,217,.3);
 }
 .finalBookBtn.secondary {
-  background: rgba(255,255,255,.08);
+  background: var(--surface);
   color: var(--text);
   border: 2px solid var(--primary);
 }
-.finalBookBtn.secondary:hover { background: rgba(91,140,255,.15); }
+.finalBookBtn.secondary:hover { background: rgba(59,111,217,.08); }
 .finalStartOver {
   width: 100%;
   padding: 10px 16px;
@@ -664,13 +659,13 @@ button:disabled{
   font-weight: 600;
   font-size: 14px;
   text-decoration: none;
-  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  box-shadow: 0 6px 20px rgba(20,32,50,.15);
   z-index: 100;
   transition: transform .1s, box-shadow .1s;
 }
 .finalFloatingChat:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(0,0,0,.5);
+  box-shadow: 0 10px 28px rgba(20,32,50,.2);
   color: #fff;
 }
 
@@ -712,5 +707,13 @@ button:disabled{
   button, .finalSidebar .card:last-of-type { display: none !important; }
   .finalView { max-width: 100%; }
   .finalLayout { grid-template-columns: 1fr; }
+  /* Dark blue text for readable PDF */
+  body, .card, .finalView, .finalSection, .finalOverviewItem, .finalItineraryDayTitle, .finalPriceItem,
+  .list li, .step1PlaceLabel, .step2OptionTitle, .step3AddonTitle, .step3ReviewItem, .faqQuestion,
+  h1, h2, h3, p, span, li, label, strong { color: #0f2744 !important; }
+  .muted, .footerNote, .finalItineraryDate, .finalItineraryDayCity, .finalOverviewItem strong,
+  .step1PlaceBadge, .step2OptionTagline, .step3AddonTagline, .step3ReviewItem strong,
+  .finalPriceItem span, .faqAnswer, .kpi small, .list li span { color: #1e3a5f !important; }
+  .finalItineraryDayNum, .finalPriceTotal strong, a { color: #0d3a7a !important; }
 }
 
