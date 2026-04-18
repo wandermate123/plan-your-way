@@ -7,25 +7,28 @@
     "dev": "next dev --hostname localhost",
     "build": "prisma generate && next build",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "postinstall": "prisma generate"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@prisma/client": "^6.19.0",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.577.0",
     "next": "^16.1.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "zod": "^4.3.6",
-    "@prisma/client": "^6.19.0"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^25.4.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "prisma": "^6.19.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.4"
   }
 }

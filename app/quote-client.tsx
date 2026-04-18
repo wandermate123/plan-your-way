@@ -1,12 +1,35 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import type { QuoteAddonOption, QuoteVehicleOption } from "@/lib/quote-ui-options";
+
+export type { QuoteAddonOption, QuoteVehicleOption } from "@/lib/quote-ui-options";
 import {
   IconMapPin, IconUsers, IconCar, IconBuilding2, IconTarget, IconShip, IconCheck,
   IconFileDown, IconShare2, IconBookOpen, IconMessageCircle, IconCalendar, IconUser, IconBaby,
   IconAnchor, IconMountain, IconLandmark, IconStar, IconSparkles, IconFootprints, IconTruck,
   IconSunrise, IconFlame, IconMinus, IconScroll, IconCamera, IconGitBranch, IconShirt, IconChevronDown,
 } from "./icons";
+import { TravelAssistantDock } from "./travel-assistant-dock";
+
+const VEHICLE_ICON_MAP = {
+  footprints: IconFootprints,
+  car: IconCar,
+  truck: IconTruck,
+} as const;
+
+const ADDON_ICON_MAP = {
+  camera: IconCamera,
+  sparkles: IconSparkles,
+  branch: IconGitBranch,
+  landmark: IconLandmark,
+  shirt: IconShirt,
+} as const;
+
+function formatVehicleLabel(vehicleType: string) {
+  if (vehicleType === "none") return "None";
+  return vehicleType;
+}
 
 type City = "varanasi" | "ayodhya" | "prayagraj" | "vindhyachal" | "other";
 
@@ -21,15 +44,9 @@ type QuoteInput = {
   childrenAges?: number[];
   stayTier: "twoStar" | "threeFourStar" | "fiveStar" | "heritage";
   guideType: "none" | "standard" | "senior" | "storyteller";
-  vehicleType: "none" | "auto" | "sedan" | "suv" | "tempo";
+  vehicleType: string;
   boating: "none" | "sunrise" | "evening";
-  addons: (
-    | "photographyPerDay"
-    | "sugamDarshan"
-    | "spiritualTriangle"
-    | "heritageWalk"
-    | "silkWalk"
-  )[];
+  addons: string[];
 };
 
 type QuoteResult = {
@@ -65,36 +82,92 @@ function todayISO() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export default function QuoteClient() {
-  const initial: QuoteInput = useMemo(() => {
-    const t = todayISO();
-    const next = new Date();
-    next.setDate(next.getDate() + 2);
-    const yyyy = next.getFullYear();
-    const mm = String(next.getMonth() + 1).padStart(2, "0");
-    const dd = String(next.getDate()).padStart(2, "0");
-    return {
-      startCity: "varanasi",
-      endCity: "varanasi",
-      destinations: ["varanasi"],
-      arrivalDate: t,
-      departureDate: `${yyyy}-${mm}-${dd}`,
-      adults: 2,
-      children: 0,
-      childrenAges: [],
-      stayTier: "threeFourStar",
-      guideType: "standard",
-      vehicleType: "sedan",
-      boating: "sunrise",
-      addons: [],
+function makeInitialQuoteInput(defaultVehicleType: string): QuoteInput {
+  const t = todayISO();
+  const next = new Date();
+  next.setDate(next.getDate() + 2);
+  const yyyy = next.getFullYear();
+  const mm = String(next.getMonth() + 1).padStart(2, "0");
+  const dd = String(next.getDate()).padStart(2, "0");
+  return {
+    startCity: "varanasi",
+    endCity: "varanasi",
+    destinations: ["varanasi"],
+    arrivalDate: t,
+    departureDate: `${yyyy}-${mm}-${dd}`,
+    adults: 2,
+    children: 0,
+    childrenAges: [],
+    stayTier: "threeFourStar",
+    guideType: "standard",
+    vehicleType: defaultVehicleType,
+    boating: "sunrise",
+    addons: [],
+  };
+}
+
+type QuoteClientProps = {
+  vehicleOptions: QuoteVehicleOption[];
+  defaultVehicleType: string;
+  addonOptions: QuoteAddonOption[];
+};
+
+export default function QuoteClient({
+  vehicleOptions,
+  defaultVehicleType,
+  addonOptions,
+}: QuoteClientProps) {
+  const [vehicleOpts, setVehicleOpts] = useState<QuoteVehicleOption[]>(vehicleOptions);
+  const [addonOpts, setAddonOpts] = useState<QuoteAddonOption[]>(addonOptions);
+
+  const [input, setInput] = useState<QuoteInput>(() => makeInitialQuoteInput(defaultVehicleType));
+
+  useEffect(() => {
+    setVehicleOpts(vehicleOptions);
+    setAddonOpts(addonOptions);
+  }, [vehicleOptions, addonOptions]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/quote-options", { cache: "no-store" });
+        const data = await res.json();
+        if (cancelled || !data?.ok || !Array.isArray(data.vehicleOptions)) return;
+        setVehicleOpts(data.vehicleOptions);
+        setAddonOpts(Array.isArray(data.addonOptions) ? data.addonOptions : []);
+        const allowedV = new Set<string>(data.vehicleOptions.map((o: QuoteVehicleOption) => o.value));
+        const defaultV = typeof data.defaultVehicleType === "string" ? data.defaultVehicleType : "";
+        setInput((prev) => {
+          let vehicleType = prev.vehicleType;
+          if (!allowedV.has(vehicleType)) {
+            vehicleType = allowedV.has(defaultV) ? defaultV : data.vehicleOptions[0]?.value ?? "none";
+          }
+          const allowedA = new Set<string>(
+            (data.addonOptions as QuoteAddonOption[] | undefined)?.map((o) => o.id) ?? [],
+          );
+          const addons =
+            allowedA.size > 0 ? prev.addons.filter((id) => allowedA.has(id)) : prev.addons;
+          return { ...prev, vehicleType, addons };
+        });
+      } catch {
+        /* keep SSR / props */
+      }
+    })();
+    return () => {
+      cancelled = true;
     };
   }, []);
 
-  const [input, setInput] = useState<QuoteInput>(initial);
+  const addonTitleById = useMemo(
+    () => Object.fromEntries(addonOpts.map((o) => [o.id, o.title])),
+    [addonOpts],
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<QuoteResult | null>(null);
   const [itinerary, setItinerary] = useState<ItineraryDay[] | null>(null);
+  const [itineraryBaseline, setItineraryBaseline] = useState<ItineraryDay[] | null>(null);
   const [openDay, setOpenDay] = useState<number | null>(1);
   const [finalExpandedDays, setFinalExpandedDays] = useState<Set<number>>(() => new Set([1]));
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
@@ -119,6 +192,40 @@ export default function QuoteClient() {
 
   const step2Valid = true; // Stay, vehicle, boat, guide all have required selections with defaults
   const step3Valid = true; // Add-ons are optional
+
+  const tripContext = useMemo(
+    () => ({
+      ...input,
+      addonTitles: input.addons.map((id) => ({ id, title: addonTitleById[id] ?? id })),
+    }),
+    [input, addonTitleById],
+  );
+
+  const canRestoreItinerary = useMemo(() => {
+    if (!itineraryBaseline?.length || !itinerary?.length) return false;
+    return JSON.stringify(itinerary) !== JSON.stringify(itineraryBaseline);
+  }, [itinerary, itineraryBaseline]);
+
+  const quoteSummaryForAssistant = quote
+    ? { total: quote.total, currency: quote.currency, nights: quote.nights, days: quote.days }
+    : null;
+
+  const assistantDock = (
+    <TravelAssistantDock
+      trip={tripContext as Record<string, unknown>}
+      itineraryDays={itinerary}
+      quoteSummary={quoteSummaryForAssistant}
+      canRestoreItinerary={canRestoreItinerary}
+      onApplyItinerary={(days) => {
+        setItinerary(days as ItineraryDay[]);
+        setOpenDay(1);
+        setFinalExpandedDays(new Set(days.slice(0, 3).map((d) => d.dayNumber)));
+      }}
+      onRestoreDefaultItinerary={() => {
+        if (itineraryBaseline) setItinerary([...itineraryBaseline]);
+      }}
+    />
+  );
 
   function handleStepNext() {
     setStepError(null);
@@ -174,6 +281,7 @@ export default function QuoteClient() {
     setError(null);
     setQuote(null);
     setItinerary(null);
+    setItineraryBaseline(null);
     try {
       const res = await fetch("/api/quote", {
         method: "POST",
@@ -184,7 +292,11 @@ export default function QuoteClient() {
       if (!res.ok || !data?.ok) throw new Error(data?.error ?? "Failed to compute quote");
       setQuote(data.quote);
       if (data.itinerary?.days) {
-        setItinerary(data.itinerary.days as ItineraryDay[]);
+        const days = data.itinerary.days as ItineraryDay[];
+        setItinerary(days);
+        setItineraryBaseline([...days]);
+      } else {
+        setItineraryBaseline(null);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -225,8 +337,8 @@ function bookingWhatsAppLink(input: QuoteInput, quote: QuoteResult) {
     `Dates: ${input.arrivalDate} to ${input.departureDate}`,
     `Travelers: ${input.adults} adults${input.children > 0 ? `, ${input.children} children` : ""}`,
     `Destinations: ${input.destinations.map((d) => d.charAt(0).toUpperCase() + d.slice(1)).join(", ")}`,
-    `Stay: ${input.stayTier} | Vehicle: ${input.vehicleType} | Guide: ${input.guideType} | Boat: ${input.boating}`,
-    `Add-ons: ${input.addons.length > 0 ? input.addons.join(", ") : "None"}`,
+    `Stay: ${input.stayTier} | Vehicle: ${formatVehicleLabel(input.vehicleType)} | Guide: ${input.guideType} | Boat: ${input.boating}`,
+    `Add-ons: ${input.addons.length > 0 ? input.addons.map((a) => addonTitleById[a] ?? a).join(", ") : "None"}`,
     ``,
     `Quoted total: ${quote.currency} ${quote.total}`,
     ``,
@@ -288,7 +400,7 @@ function chatSupportWhatsAppLink() {
                     </div>
                     <div className="finalOverviewItem">
                       <span className="finalOverviewIcon"><IconCar /></span>
-                      <span><strong>Vehicle:</strong> {input.vehicleType === "none" ? "None" : input.vehicleType.charAt(0).toUpperCase() + input.vehicleType.slice(1)}</span>
+                      <span><strong>Vehicle:</strong> {formatVehicleLabel(input.vehicleType)}</span>
                     </div>
                     <div className="finalOverviewItem">
                       <span className="finalOverviewIcon"><IconBuilding2 /></span>
@@ -304,16 +416,11 @@ function chatSupportWhatsAppLink() {
                     </div>
                     <div className="finalOverviewItem">
                       <span className="finalOverviewIcon"><IconCheck /></span>
-                      <span><strong>Add-ons:</strong> {input.addons.length > 0 ? input.addons.map((a) => {
-                        const labels: Record<string, string> = {
-                          photographyPerDay: "Photography",
-                          sugamDarshan: "Sugam Darshan",
-                          spiritualTriangle: "Spiritual Triangle",
-                          heritageWalk: "Heritage Walk",
-                          silkWalk: "Silk Walk",
-                        };
-                        return labels[a] ?? a;
-                      }).join(", ") : "None"}</span>
+                      <span><strong>Add-ons:</strong>{" "}
+                        {input.addons.length > 0
+                          ? input.addons.map((a) => addonTitleById[a] ?? a).join(", ")
+                          : "None"}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -449,6 +556,7 @@ function chatSupportWhatsAppLink() {
                 onClick={() => {
                   setQuote(null);
                   setItinerary(null);
+                  setItineraryBaseline(null);
                   setFinalExpandedDays(new Set([1]));
                   setStep(1);
                 }}
@@ -458,6 +566,8 @@ function chatSupportWhatsAppLink() {
             </aside>
           </div>
         </div>
+
+        {assistantDock}
 
         <a
           href={chatSupportWhatsAppLink()}
@@ -734,28 +844,22 @@ function chatSupportWhatsAppLink() {
           <div className="step2Section">
             <div className="step2SectionHeader navy">2. Select your transport <span className="required">*</span></div>
             <div className="step2SectionBody">
-              {[
-                { value: "none" as const, Icon: IconFootprints, title: "No vehicle", tagline: "Walk & local transport" },
-                { value: "auto" as const, Icon: IconCar, title: "Auto / E-rickshaw", tagline: "Local, nimble" },
-                { value: "sedan" as const, Icon: IconCar, title: "Sedan", tagline: "Simple, efficient" },
-                { value: "suv" as const, Icon: IconCar, title: "SUV", tagline: "Comfort, space" },
-                { value: "tempo" as const, Icon: IconTruck, title: "Tempo Traveller", tagline: "Group transport" },
-              ].map((opt) => {
-                const IconComponent = opt.Icon;
+              {vehicleOpts.map((opt) => {
+                const IconComponent = VEHICLE_ICON_MAP[opt.icon];
                 return (
-                <div
-                  key={opt.value}
-                  className={`step2OptionCard ${input.vehicleType === opt.value ? "selected" : ""}`}
-                  onClick={() => set("vehicleType", opt.value)}
-                >
-                  <span className="step2OptionIcon"><IconComponent /></span>
-                  <div className="step2OptionContent">
-                    <div className="step2OptionTitle">{opt.title}</div>
-                    <div className="step2OptionTagline">{opt.tagline}</div>
+                  <div
+                    key={opt.value}
+                    className={`step2OptionCard ${input.vehicleType === opt.value ? "selected" : ""}`}
+                    onClick={() => set("vehicleType", opt.value)}
+                  >
+                    <span className="step2OptionIcon"><IconComponent /></span>
+                    <div className="step2OptionContent">
+                      <div className="step2OptionTitle">{opt.title}</div>
+                      <div className="step2OptionTagline">{opt.tagline}</div>
+                    </div>
+                    <div className="step2OptionRadio" />
                   </div>
-                  <div className="step2OptionRadio" />
-                </div>
-              );
+                );
               })}
             </div>
           </div>
@@ -836,35 +940,29 @@ function chatSupportWhatsAppLink() {
               </div>
               <div className="step2SectionBody">
                 <div className="step3AddonGrid">
-                  {[
-                    { id: "photographyPerDay" as const, Icon: IconCamera, title: "Professional Photography", tagline: "Per day session" },
-                    { id: "sugamDarshan" as const, Icon: IconSparkles, title: "Sugam Darshan", tagline: "Easier temple access" },
-                    { id: "spiritualTriangle" as const, Icon: IconGitBranch, title: "Spiritual Triangle Add-ons", tagline: "Varanasi–Ayodhya–Prayagraj" },
-                    { id: "heritageWalk" as const, Icon: IconLandmark, title: "Heritage Walk", tagline: "Historic streets & stories" },
-                    { id: "silkWalk" as const, Icon: IconShirt, title: "Silk Walk", tagline: "Banarasi silk weaving tour" },
-                  ].map((opt) => {
-                    const IconComponent = opt.Icon;
+                  {addonOpts.map((opt) => {
+                    const IconComponent = ADDON_ICON_MAP[opt.icon];
                     return (
-                    <div
-                      key={opt.id}
-                      className={`step3AddonCard ${input.addons.includes(opt.id) ? "selected" : ""}`}
-                      onClick={() => toggleAddon(opt.id, !input.addons.includes(opt.id))}
-                    >
-                      <div className="step3AddonCardContent">
-                        <span className="step3AddonIcon"><IconComponent /></span>
-                        <div className="step3AddonTitle">{opt.title}</div>
-                        <div className="step3AddonTagline">{opt.tagline}</div>
+                      <div
+                        key={opt.id}
+                        className={`step3AddonCard ${input.addons.includes(opt.id) ? "selected" : ""}`}
+                        onClick={() => toggleAddon(opt.id, !input.addons.includes(opt.id))}
+                      >
+                        <div className="step3AddonCardContent">
+                          <span className="step3AddonIcon"><IconComponent /></span>
+                          <div className="step3AddonTitle">{opt.title}</div>
+                          <div className="step3AddonTagline">{opt.tagline}</div>
+                        </div>
+                        <div className="step3AddonCheckbox">
+                          <input
+                            type="checkbox"
+                            checked={input.addons.includes(opt.id)}
+                            onChange={(e) => toggleAddon(opt.id, e.target.checked)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
                       </div>
-                      <div className="step3AddonCheckbox">
-                        <input
-                          type="checkbox"
-                          checked={input.addons.includes(opt.id)}
-                          onChange={(e) => toggleAddon(opt.id, e.target.checked)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                    </div>
-                  );
+                    );
                   })}
                 </div>
               </div>
@@ -882,7 +980,7 @@ function chatSupportWhatsAppLink() {
                   </div>
                   <div className="step3ReviewItem">
                     <span className="step3ReviewIcon"><IconCar /></span>
-                    <span><strong>Transport:</strong> {input.vehicleType === "none" ? "None" : input.vehicleType.charAt(0).toUpperCase() + input.vehicleType.slice(1)}</span>
+                    <span><strong>Transport:</strong> {formatVehicleLabel(input.vehicleType)}</span>
                   </div>
                   <div className="step3ReviewItem">
                     <span className="step3ReviewIcon"><IconShip /></span>
@@ -898,16 +996,11 @@ function chatSupportWhatsAppLink() {
                   </div>
                   <div className="step3ReviewItem">
                     <span className="step3ReviewIcon"><IconCheck /></span>
-                    <span><strong>Add-ons:</strong> {input.addons.length > 0 ? input.addons.map((a) => {
-                      const labels: Record<string, string> = {
-                        photographyPerDay: "Photography",
-                        sugamDarshan: "Sugam Darshan",
-                        spiritualTriangle: "Spiritual Triangle",
-                        heritageWalk: "Heritage Walk",
-                        silkWalk: "Silk Walk",
-                      };
-                      return labels[a] ?? a;
-                    }).join(", ") : "None"}</span>
+                    <span><strong>Add-ons:</strong>{" "}
+                      {input.addons.length > 0
+                        ? input.addons.map((a) => addonTitleById[a] ?? a).join(", ")
+                        : "None"}
+                    </span>
                   </div>
                 </div>
                 <p className="footerNote" style={{ marginTop: 12, marginBottom: 0 }}>
@@ -948,10 +1041,11 @@ function chatSupportWhatsAppLink() {
           <button
             className="secondary"
             onClick={() => {
-              setInput(initial);
+              setInput(makeInitialQuoteInput(defaultVehicleType));
               setQuote(null);
               setError(null);
               setItinerary(null);
+              setItineraryBaseline(null);
               setStep(1);
             }}
             disabled={loading}
@@ -1175,6 +1269,8 @@ function chatSupportWhatsAppLink() {
           ))}
         </div>
       </section>
+
+      {assistantDock}
 
       <a
         href={chatSupportWhatsAppLink()}

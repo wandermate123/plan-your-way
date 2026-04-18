@@ -1,18 +1,14 @@
 import { z } from "zod";
 
 export const StayTierSchema = z.enum(["twoStar", "threeFourStar", "fiveStar", "heritage"]);
-export const VehicleTypeSchema = z.enum(["none", "auto", "sedan", "suv", "tempo"]);
+/** Keys in `vehicle.perDay` in pricing.json (e.g. none, Swift Dzire, Ertiga). */
+export const VehicleTypeKeySchema = z.string().min(1);
 export const BoatingSchema = z.enum(["none", "sunrise", "evening"]);
 export const GuideTypeSchema = z.enum(["none", "standard", "senior", "storyteller"]);
 export const CitySchema = z.enum(["varanasi", "ayodhya", "prayagraj", "vindhyachal", "other"]);
-export const AddonIdSchema = z.enum([
-  "photographyPerDay",
-  "sugamDarshan",
-  "spiritualTriangle",
-  "heritageWalk",
-  "silkWalk",
-]);
-
+const PricingAddonIdSchema = z
+  .string()
+  .regex(/^[a-z][a-zA-Z0-9]*$/, "Addon IDs must be camelCase machine-safe keys");
 export const QuoteInputSchema = z.object({
   startCity: CitySchema,
   endCity: CitySchema,
@@ -24,9 +20,9 @@ export const QuoteInputSchema = z.object({
   childrenAges: z.array(z.number().int().min(0).max(17)).optional(),
   stayTier: StayTierSchema,
   guideType: GuideTypeSchema,
-  vehicleType: VehicleTypeSchema,
+  vehicleType: VehicleTypeKeySchema,
   boating: BoatingSchema,
-  addons: z.array(AddonIdSchema).default([]),
+  addons: z.array(z.string().min(1)).default([]),
 });
 
 export type QuoteInput = z.infer<typeof QuoteInputSchema>;
@@ -50,15 +46,16 @@ export const PricingConfigSchema = z.object({
     perDay: z.record(GuideTypeSchema, z.number().nonnegative()),
   }),
   vehicle: z.object({
-    perDay: z.record(VehicleTypeSchema, z.number().nonnegative()),
+    perDay: z
+      .record(z.string(), z.number().nonnegative())
+      .refine((r) => Object.prototype.hasOwnProperty.call(r, "none"), {
+        message: 'vehicle.perDay must include a "none" key',
+      })
+      .refine((r) => Object.keys(r).length >= 2, {
+        message: "vehicle.perDay must include at least one bookable vehicle in addition to none",
+      }),
   }),
-  addons: z.object({
-    photographyPerDay: z.number().nonnegative(),
-    sugamDarshan: z.number().nonnegative(),
-    spiritualTriangle: z.number().nonnegative(),
-    heritageWalk: z.number().nonnegative(),
-    silkWalk: z.number().nonnegative(),
-  }),
+  addons: z.record(PricingAddonIdSchema, z.number().nonnegative()),
   boating: z.object({
     sunrise: z.object({
       perPerson: z.number().nonnegative(),

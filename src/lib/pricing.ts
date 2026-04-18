@@ -64,7 +64,7 @@ export function computeQuote(input: QuoteInput, pricing: PricingConfig): QuoteRe
     });
   }
 
-  const vehicleRate = pricing.vehicle.perDay[input.vehicleType];
+  const vehicleRate = pricing.vehicle.perDay[input.vehicleType] ?? 0;
   const vehicleAmount = vehicleRate * days;
   if (vehicleAmount > 0) {
     items.push({
@@ -114,13 +114,14 @@ export function computeQuote(input: QuoteInput, pricing: PricingConfig): QuoteRe
     photographyPerDay: "Professional Photography",
     sugamDarshan: "Sugam Darshan",
     spiritualTriangle: "Spiritual Triangle Add-ons",
+    foodWalk: "Food Walk",
     heritageWalk: "Heritage Walk",
     silkWalk: "Silk Walk",
   };
   let addonsAmount = 0;
   if (input.addons && input.addons.length > 0) {
     for (const addon of input.addons) {
-      const rate = pricing.addons[addon as keyof typeof pricing.addons];
+      const rate = pricing.addons[addon];
       if (typeof rate !== "number") continue;
       const price = addon === "photographyPerDay" ? rate * days : rate;
       addonsAmount += price;

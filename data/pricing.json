@@ -22,27 +22,27 @@
   "vehicle": {
     "perDay": {
       "none": 0,
-      "auto": 1200,
-      "sedan": 2500,
-      "suv": 2800,
-      "tempo": 6500
+      "Swift Dzire": 2600,
+      "Ertiga": 2800,
+      "Innova Crysta": 3600,
+      "Tempo Traveller": 7500
     }
   },
   "addons": {
     "photographyPerDay": 5000,
     "sugamDarshan": 500,
-    "spiritualTriangle": 1500,
+    "foodWalk": 1500,
     "heritageWalk": 2000,
     "silkWalk": 800
   },
   "boating": {
     "sunrise": {
       "perPerson": 250,
-      "minimumTotal": 2500
+      "minimumTotal": 3000
     },
     "evening": {
       "perPerson": 300,
-      "minimumTotal": 2500
+      "minimumTotal": 3000
     }
   },
   "children": {
@@ -53,4 +53,3 @@
     "city": "Varanasi"
   }
 }
-
