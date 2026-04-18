@@ -34,20 +34,23 @@ export const TaxRateSchema = z
   .max(100)
   .transform((n) => (n > 1 ? n / 100 : n));
 
+/** Rupee amounts in pricing.json (guards fat-finger / paste errors in admin). */
+const moneyInr = z.number().nonnegative().max(2_000_000);
+
 export const PricingConfigSchema = z.object({
-  currency: z.string().min(1),
+  currency: z.string().min(1).max(16),
   taxRate: TaxRateSchema,
   rounding: z.enum(["nearest", "up", "down"]),
-  roundingUnit: z.number().int().min(1),
+  roundingUnit: z.number().int().min(1).max(100_000),
   stay: z.object({
-    perNight: z.record(StayTierSchema, z.number().nonnegative()),
+    perNight: z.record(StayTierSchema, moneyInr),
   }),
   guide: z.object({
-    perDay: z.record(GuideTypeSchema, z.number().nonnegative()),
+    perDay: z.record(GuideTypeSchema, moneyInr),
   }),
   vehicle: z.object({
     perDay: z
-      .record(z.string(), z.number().nonnegative())
+      .record(z.string(), moneyInr)
       .refine((r) => Object.prototype.hasOwnProperty.call(r, "none"), {
         message: 'vehicle.perDay must include a "none" key',
       })
@@ -55,15 +58,15 @@ export const PricingConfigSchema = z.object({
         message: "vehicle.perDay must include at least one bookable vehicle in addition to none",
       }),
   }),
-  addons: z.record(PricingAddonIdSchema, z.number().nonnegative()),
+  addons: z.record(PricingAddonIdSchema, moneyInr),
   boating: z.object({
     sunrise: z.object({
-      perPerson: z.number().nonnegative(),
-      minimumTotal: z.number().nonnegative(),
+      perPerson: moneyInr,
+      minimumTotal: moneyInr,
     }),
     evening: z.object({
-      perPerson: z.number().nonnegative(),
-      minimumTotal: z.number().nonnegative(),
+      perPerson: moneyInr,
+      minimumTotal: moneyInr,
     }),
   }),
   children: z.object({

@@ -5,9 +5,23 @@ import { AssistantReplySchema, TravelAssistantRequestSchema } from "@/lib/travel
 import { buildTravelAssistantSystemPrompt } from "@/lib/travel-assistant-prompt";
 import { logApiEvent } from "@/lib/observability";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  RATE_LIMIT_TRAVEL_ASSISTANT_MAX,
+  RATE_LIMIT_WINDOW_MS,
+} from "@/lib/rate-limit-config";
 
 /** Ensures `.env` / `.env.local` are applied even if this module loaded before Next injected them. */
 loadEnvConfig(process.cwd());
+
+/** Vercel / hosts: allow long enough for one OpenAI round-trip (raise on Pro if needed). */
+export const maxDuration = 60;
+
+function openAiFetchTimeoutMs(): number {
+  const n = Number(process.env.OPENAI_FETCH_TIMEOUT_MS);
+  if (Number.isFinite(n) && n >= 5_000 && n <= 120_000) return n;
+  /** Default stays low so two-phase calls (JSON → plain) rarely exceed `maxDuration`. */
+  return 11_000;
+}
 
 function resolveOpenAiApiKey(): string | undefined {
   const raw = process.env.OPENAI_API_KEY ?? process.env.OPENAI_KEY;
@@ -47,13 +61,38 @@ function parseOpenAiErrorBody(errText: string): string | undefined {
   }
 }
 
+/** Seconds to wait before retrying (from OpenAI 429 message); clamped for sensible UI cooldown. */
+function parseOpenAi429RetryAfterSeconds(errText: string): number | undefined {
+  const detail = parseOpenAiErrorBody(errText) ?? errText;
+  const msM = detail.match(/try again in\s+([\d.]+)\s*ms\b/i);
+  if (msM) {
+    const ms = parseFloat(msM[1]);
+    if (!Number.isNaN(ms) && ms > 0) {
+      return Math.min(120, Math.max(5, Math.ceil(ms / 1000)));
+    }
+  }
+  const sM = detail.match(/try again in\s+([\d.]+)\s*s(?:ec)?\b/i);
+  if (sM) {
+    const sec = parseFloat(sM[1]);
+    if (!Number.isNaN(sec) && sec > 0) {
+      return Math.min(120, Math.max(5, Math.ceil(sec)));
+    }
+  }
+  return undefined;
+}
+
 function userFacingOpenAiError(status: number, errText: string): string {
   const detail = parseOpenAiErrorBody(errText);
   if (status === 401) {
     return "OpenAI rejected this API key (401). Confirm OPENAI_API_KEY in `.env` / `.env.local`, restart the dev server, or create a new key in the OpenAI dashboard.";
   }
   if (status === 429) {
-    return "OpenAI rate limit (429). Wait a minute and try again, or check usage on your OpenAI account.";
+    const hint = parseOpenAi429RetryAfterSeconds(errText);
+    const wait = hint ? ` Suggested wait from OpenAI: ~${hint}s.` : "";
+    return `OpenAI rate limit (429): too many requests or tokens per minute for your plan.${wait} See usage and limits in your OpenAI dashboard, or wait before sending again.`;
+  }
+  if (status === 504) {
+    return "OpenAI request timed out. Try a shorter message, then try again.";
   }
   if (status === 402 || status === 403) {
     return "OpenAI returned a billing or access error. Check your plan, credits, and project limits in the OpenAI dashboard.";
@@ -82,22 +121,28 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** Wait before retrying OpenAI after HTTP 429. */
+/** Wait before retrying OpenAI after HTTP 429 (kept short so serverless / reverse proxies do not 502). */
 function waitMsAfter429(res: Response, errText: string, attemptIndex: number): number {
+  const hardCap = 3_500;
   const header = res.headers.get("retry-after");
   if (header) {
     const sec = parseFloat(header);
     if (!Number.isNaN(sec) && sec > 0) {
-      return Math.min(Math.ceil(sec * 1000), 25_000);
+      return Math.min(Math.ceil(sec * 1000), hardCap);
     }
   }
-  const detail = parseOpenAiErrorBody(errText)?.toLowerCase() ?? "";
-  const m = detail.match(/try again in ([\d.]+)s/);
+  const detail = (parseOpenAiErrorBody(errText) ?? errText).toLowerCase();
+  const mMs = detail.match(/try again in\s+([\d.]+)\s*ms/);
+  if (mMs) {
+    const ms = parseFloat(mMs[1]);
+    if (!Number.isNaN(ms) && ms > 0) return Math.min(Math.ceil(ms), hardCap);
+  }
+  const m = detail.match(/try again in\s+([\d.]+)\s*s/);
   if (m) {
     const sec = parseFloat(m[1]);
-    if (!Number.isNaN(sec) && sec > 0) return Math.min(Math.ceil(sec * 1000), 25_000);
+    if (!Number.isNaN(sec) && sec > 0) return Math.min(Math.ceil(sec * 1000), hardCap);
   }
-  return Math.min(1500 * 2 ** attemptIndex, 12_000);
+  return Math.min(900 * 2 ** attemptIndex, hardCap);
 }
 
 type ChatBody = {
@@ -108,8 +153,65 @@ type ChatBody = {
   response_format?: { type: "json_object" };
 };
 
+type TripLike = {
+  destinations?: unknown;
+  adults?: unknown;
+  children?: unknown;
+  arrivalDate?: unknown;
+  departureDate?: unknown;
+};
+
+function fallbackReplyForRateLimit(
+  lastUserMessage: string,
+  trip: unknown,
+  itineraryDays?: { dayNumber: number; dateLabel: string; city: string; title: string; highlights: string[] }[],
+): {
+  reply: string;
+  itinerarySuggestion?: { days: { dayNumber: number; dateLabel: string; city: string; title: string; highlights: string[] }[] };
+} {
+  const t = (trip ?? {}) as TripLike;
+  const destinations = Array.isArray(t.destinations)
+    ? t.destinations.filter((x): x is string => typeof x === "string")
+    : [];
+  const adults = typeof t.adults === "number" ? t.adults : 0;
+  const children = typeof t.children === "number" ? t.children : 0;
+  const userText = lastUserMessage.toLowerCase();
+  const wantsPrice = /price|cost|total|quote|₹|inr/.test(userText);
+  const wantsCustom =
+    /itinerary|custom|customise|customize|slow|pace|parents|senior|kids|children/.test(userText);
+
+  if (wantsPrice) {
+    return {
+      reply:
+        "I can help with planning and itinerary tips right now. For an exact price, please tap **Get exact price** — totals always come from your quote engine.",
+    };
+  }
+
+  if (wantsCustom && itineraryDays && itineraryDays.length > 0) {
+    const days = itineraryDays.map((d) => ({
+      ...d,
+      highlights: [
+        ...d.highlights,
+        "Keep buffer time between temple visits to avoid rush and traffic stress.",
+        ...(adults + children > 4
+          ? ["Use staggered breaks for meals/rest so group energy stays balanced throughout the day."]
+          : []),
+      ].slice(0, 6),
+    }));
+    return {
+      reply:
+        "OpenAI is busy right now, so I switched to backup mode and prepared a gentler itinerary draft for you. You can apply it now and continue refining once the model is available.",
+      itinerarySuggestion: { days },
+    };
+  }
+
+  return {
+    reply: `OpenAI is rate-limited right now, but I can still help.\n\nBased on your trip (${destinations.join(", ") || "Varanasi"}; ${adults} adults${children ? `, ${children} children` : ""}), I suggest:\n- Keep 1 light block each day for buffer/rest.\n- Prioritize darshan windows early morning or late evening.\n- Club nearby stops to reduce transit fatigue.\n- Re-run the assistant in a minute for deeper customisation.`,
+  };
+}
+
 /**
- * POST chat/completions; on 429, waits and retries a few times (free tier hits RPM/TPM often).
+ * POST chat/completions; on 429, one short backoff retry (long multi-retry chains hit platform timeouts → 502).
  */
 async function openAiChatCompletion(
   url: string,
@@ -117,11 +219,13 @@ async function openAiChatCompletion(
   body: ChatBody,
   requestId: string,
 ): Promise<{ ok: true; res: Response } | { ok: false; status: number; errText: string }> {
-  const max429Attempts = 4;
-  let lastStatus = 502;
+  /** Initial attempt + one retry after 429 only (2 iterations max). */
+  const maxAttempts = 2;
+  let lastStatus = 503;
   let lastErr = "{}";
+  const tMs = openAiFetchTimeoutMs();
 
-  for (let i = 0; i < max429Attempts; i++) {
+  for (let i = 0; i < maxAttempts; i++) {
     let res: Response;
     try {
       res = await fetch(url, {
@@ -131,10 +235,18 @@ async function openAiChatCompletion(
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(tMs),
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Network error";
-      return { ok: false, status: 502, errText: JSON.stringify({ error: { message: msg } }) };
+      const err = e instanceof Error ? e : new Error("Network error");
+      if (err.name === "AbortError" || err.message.includes("aborted")) {
+        return {
+          ok: false,
+          status: 504,
+          errText: JSON.stringify({ error: { message: `OpenAI fetch timed out after ${tMs}ms` } }),
+        };
+      }
+      return { ok: false, status: 503, errText: JSON.stringify({ error: { message: err.message } }) };
     }
 
     if (res.ok) {
@@ -145,14 +257,14 @@ async function openAiChatCompletion(
     lastStatus = res.status;
     lastErr = errText;
 
-    if (res.status === 429 && i < max429Attempts - 1) {
+    if (res.status === 429 && i < maxAttempts - 1) {
       const waitMs = waitMsAfter429(res, errText, i);
       logApiEvent("warn", {
         route: "/api/travel-assistant",
         requestId,
         status: 429,
         durationMs: 0,
-        message: `OpenAI 429, retry in ${waitMs}ms (attempt ${i + 1}/${max429Attempts})`,
+        message: `OpenAI 429, retry in ${waitMs}ms (attempt ${i + 1}/${maxAttempts})`,
       });
       await sleep(waitMs);
       continue;
@@ -168,7 +280,12 @@ export async function POST(req: Request) {
   const requestId = crypto.randomUUID();
   const start = performance.now();
 
-  const limit = checkRateLimit(req, "/api/travel-assistant", 20, 60_000);
+  const limit = checkRateLimit(
+    req,
+    "/api/travel-assistant",
+    RATE_LIMIT_TRAVEL_ASSISTANT_MAX,
+    RATE_LIMIT_WINDOW_MS,
+  );
   if (!limit.ok) {
     logApiEvent("warn", {
       route: "/api/travel-assistant",
@@ -210,15 +327,14 @@ export async function POST(req: Request) {
     const parsed = TravelAssistantRequestSchema.parse(body);
 
     const model = process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini";
-    const userContext = JSON.stringify(
-      {
-        trip: parsed.trip,
-        itineraryDays: parsed.itineraryDays ?? null,
-        quoteSummary: parsed.quoteSummary ?? null,
-      },
-      null,
-      0,
-    );
+    const userContext = JSON.stringify({
+      trip: parsed.trip,
+      itineraryDays: parsed.itineraryDays ?? null,
+      quoteSummary: parsed.quoteSummary ?? null,
+    });
+
+    /** Keeps TPM lower on long chats (older turns matter less for the next reply). */
+    const recentChat = parsed.messages.slice(-10);
 
     const messages = [
       { role: "system" as const, content: buildTravelAssistantSystemPrompt() },
@@ -226,14 +342,14 @@ export async function POST(req: Request) {
         role: "system" as const,
         content: `Current trip context (JSON):\n${userContext}`,
       },
-      ...parsed.messages.map((m) => ({ role: m.role, content: m.content })),
+      ...recentChat.map((m) => ({ role: m.role, content: m.content })),
     ];
 
     const url = openAiChatUrl();
     const baseBody: ChatBody = {
       model,
       temperature: 0.5,
-      max_tokens: 1800,
+      max_tokens: 900,
       messages,
     };
 
@@ -249,25 +365,49 @@ export async function POST(req: Request) {
     }
 
     if (!result.ok) {
+      const httpOut = result.status === 504 ? 504 : 503;
       logApiEvent("error", {
         route: "/api/travel-assistant",
         requestId,
-        status: 502,
+        status: httpOut,
         durationMs: Math.round(performance.now() - start),
         message: `OpenAI error ${result.status}: ${result.errText.slice(0, 800)}`,
       });
+      if (result.status === 429) {
+        const lastUserMessage = [...parsed.messages]
+          .reverse()
+          .find((m) => m.role === "user")?.content ?? "Help me with itinerary";
+        const fallback = fallbackReplyForRateLimit(
+          lastUserMessage,
+          parsed.trip,
+          parsed.itineraryDays as
+            | { dayNumber: number; dateLabel: string; city: string; title: string; highlights: string[] }[]
+            | undefined,
+        );
+        logApiEvent("warn", {
+          route: "/api/travel-assistant",
+          requestId,
+          status: 200,
+          durationMs: Math.round(performance.now() - start),
+          message: "Served local fallback assistant response after OpenAI 429",
+        });
+        return NextResponse.json(
+          { ok: true, ...fallback, fallback: true },
+          { status: 200, headers: { "x-request-id": requestId } },
+        );
+      }
       const errMsg = userFacingOpenAiError(result.status, result.errText);
-      const extra =
+      const retryAfterSec =
         result.status === 429
-          ? " The server already retried automatically; if this persists, wait 1–2 minutes or upgrade your OpenAI usage tier."
-          : "";
+          ? parseOpenAi429RetryAfterSeconds(result.errText) ?? 60
+          : undefined;
       return NextResponse.json(
         {
           ok: false,
-          error: errMsg + extra,
-          ...(result.status === 429 ? { retryAfterSec: 45 } : {}),
+          error: errMsg,
+          ...(typeof retryAfterSec === "number" ? { retryAfterSec } : {}),
         },
-        { status: 502, headers: { "x-request-id": requestId } },
+        { status: httpOut, headers: { "x-request-id": requestId } },
       );
     }
 
