@@ -1,5 +1,10 @@
 {
   "currency": "INR",
+  "meta": {
+    "pricingVersion": 3,
+    "effectiveFrom": "2026-04-18",
+    "notes": "Cab per-day selling prices by route band (local Varanasi, Ayodhya, Prayagraj, Ayodhya+Prayagraj combo, Vindhyachal). Dzire Vindhyachal interim = Prayagraj until a list price is set. Ertiga Varanasi local is selling price; parking is extra at actual. Child policy: under 10 free for stay+boat per-person math. children.* discount fields legacy."
+  },
   "taxRate": 5.0,
   "rounding": "nearest",
   "roundingUnit": 1,
@@ -22,9 +27,27 @@
   "vehicle": {
     "perDay": {
       "none": 0,
-      "Swift Dzire": 2600,
-      "Ertiga": 2800,
-      "Innova Crysta": 3600,
+      "Swift Dzire": {
+        "localVaranasi": 2800,
+        "ayodhya": 6500,
+        "prayagraj": 3500,
+        "ayodhyaPrayagraj": 8000,
+        "vindhyachal": 3500
+      },
+      "Ertiga": {
+        "localVaranasi": 2800,
+        "ayodhya": 8000,
+        "prayagraj": 4500,
+        "ayodhyaPrayagraj": 9000,
+        "vindhyachal": 3200
+      },
+      "Innova Crysta": {
+        "localVaranasi": 3800,
+        "ayodhya": 11000,
+        "prayagraj": 5500,
+        "ayodhyaPrayagraj": 13000,
+        "vindhyachal": 4200
+      },
       "Tempo Traveller": 7500
     }
   },

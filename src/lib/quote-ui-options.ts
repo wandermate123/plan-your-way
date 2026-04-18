@@ -17,7 +17,7 @@ export type QuoteAddonOption = {
 const VEHICLE_TAGLINES: Record<string, string> = {
   none: "Walk & local transport",
   "Swift Dzire": "Compact sedan — great for couples & small families",
-  Ertiga: "Spacious MPV — room for 6–7 guests",
+  Ertiga: "Spacious MPV — Varanasi local rate excludes parking (payable at actual)",
   "Innova Crysta": "Premium comfort — ideal for families",
   "Tempo Traveller": "Group-friendly with plenty of luggage space",
 };

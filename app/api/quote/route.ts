@@ -6,16 +6,12 @@ import { computeQuote } from "@/lib/pricing";
 import { buildItinerary } from "@/lib/itinerary";
 import { logApiEvent } from "@/lib/observability";
 import { checkRateLimit } from "@/lib/rate-limit";
-import {
-  RATE_LIMIT_QUOTE_MAX,
-  RATE_LIMIT_WINDOW_MS,
-} from "@/lib/rate-limit-config";
 
 export async function POST(req: Request) {
   const requestId = crypto.randomUUID();
   const start = performance.now();
   try {
-    const limit = checkRateLimit(req, "/api/quote", RATE_LIMIT_QUOTE_MAX, RATE_LIMIT_WINDOW_MS);
+    const limit = checkRateLimit(req, "/api/quote", 30, 60_000);
     if (!limit.ok) {
       const status = 429;
       logApiEvent("warn", {
@@ -80,7 +76,12 @@ export async function POST(req: Request) {
       durationMs: Math.round(performance.now() - start),
     });
     return NextResponse.json(
-      { ok: true, quote, itinerary },
+      {
+        ok: true,
+        quote,
+        itinerary,
+        pricingVersion: pricing.meta?.pricingVersion ?? null,
+      },
       { status, headers: { "x-request-id": requestId } },
     );
   } catch (err) {

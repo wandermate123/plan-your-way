@@ -18,11 +18,6 @@ export function checkRateLimit(
   windowMs: number,
 ): { ok: boolean; retryAfterSec: number } {
   const now = Date.now();
-  if (buckets.size > 500) {
-    for (const [k, v] of buckets) {
-      if (now >= v.resetAt) buckets.delete(k);
-    }
-  }
   const key = `${route}:${getClientKey(req)}`;
   const current = buckets.get(key);
   if (!current || now >= current.resetAt) {

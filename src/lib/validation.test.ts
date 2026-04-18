@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { PricingConfigSchema } from "./validation";
+import { PricingConfigSchema, QuoteInputSchema } from "./validation";
+
+const baseQuote = {
+  startCity: "varanasi" as const,
+  endCity: "varanasi" as const,
+  destinations: ["varanasi"],
+  arrivalDate: "2026-04-10",
+  departureDate: "2026-04-12",
+  adults: 2,
+  children: 0,
+  stayTier: "threeFourStar" as const,
+  guideType: "standard" as const,
+  vehicleType: "Swift Dzire",
+  boating: "sunrise" as const,
+  addons: [] as string[],
+};
 
 describe("PricingConfigSchema", () => {
   it("accepts machine-safe addon keys", () => {
@@ -42,5 +57,36 @@ describe("PricingConfigSchema", () => {
         defaults: { city: "Varanasi" },
       }),
     ).toThrow(/Addon IDs must be camelCase machine-safe keys/);
+  });
+});
+
+describe("QuoteInputSchema", () => {
+  it("requires one age per child when children > 0", () => {
+    expect(() =>
+      QuoteInputSchema.parse({
+        ...baseQuote,
+        children: 2,
+        childrenAges: [7],
+      }),
+    ).toThrow(/Enter an age for each child/);
+  });
+
+  it("rejects leftover ages when children is 0", () => {
+    expect(() =>
+      QuoteInputSchema.parse({
+        ...baseQuote,
+        children: 0,
+        childrenAges: [8],
+      }),
+    ).toThrow(/Remove child ages/);
+  });
+
+  it("accepts matching ages for each child", () => {
+    const parsed = QuoteInputSchema.parse({
+      ...baseQuote,
+      children: 2,
+      childrenAges: [7, 11],
+    });
+    expect(parsed.childrenAges).toEqual([7, 11]);
   });
 });

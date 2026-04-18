@@ -3,22 +3,13 @@ import { readPricingConfig } from "@/lib/storage";
 import { buildQuoteUiOptions } from "@/lib/quote-ui-options";
 import { logApiEvent } from "@/lib/observability";
 import { checkRateLimit } from "@/lib/rate-limit";
-import {
-  RATE_LIMIT_QUOTE_OPTIONS_MAX,
-  RATE_LIMIT_WINDOW_MS,
-} from "@/lib/rate-limit-config";
 
 /** Public, uncached — vehicle / add-on labels from current pricing (no per-day rates). */
 export async function GET(req: Request) {
   const requestId = crypto.randomUUID();
   const start = performance.now();
   try {
-    const limit = checkRateLimit(
-      req,
-      "/api/quote-options",
-      RATE_LIMIT_QUOTE_OPTIONS_MAX,
-      RATE_LIMIT_WINDOW_MS,
-    );
+    const limit = checkRateLimit(req, "/api/quote-options", 60, 60_000);
     if (!limit.ok) {
       const status = 429;
       logApiEvent("warn", {

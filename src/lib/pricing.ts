@@ -1,5 +1,6 @@
 import { differenceInCalendarDays, parseISO } from "date-fns";
-import type { PricingConfig, QuoteInput } from "./validation";
+import { formatStayTierLabel, type PricingConfig, type QuoteInput } from "./validation";
+import { formatVehicleQuoteLabel, resolveVehiclePerDayRate } from "./vehicle-pricing";
 
 export type QuoteLineItem = {
   code:
@@ -39,6 +40,19 @@ function roundMoney(amount: number, rounding: PricingConfig["rounding"], unit: n
   return Math.round(x) * unit;
 }
 
+/**
+ * For stay and boating per-person pricing: children under 10 are free; age 10+ counts like an adult.
+ * Requires `childrenAges.length === children` when children > 0 (enforced by QuoteInputSchema).
+ */
+export function childrenBillableAsAdultsForStayAndBoating(input: QuoteInput): number {
+  if (input.children <= 0) return 0;
+  const ages = input.childrenAges;
+  if (!ages || ages.length !== input.children) {
+    return input.children;
+  }
+  return ages.filter((a) => a >= 10).length;
+}
+
 export function computeQuote(input: QuoteInput, pricing: PricingConfig): QuoteResult {
   const arrival = parseISO(input.arrivalDate);
   const departure = parseISO(input.departureDate);
@@ -48,30 +62,43 @@ export function computeQuote(input: QuoteInput, pricing: PricingConfig): QuoteRe
   const days = Math.max(1, diffDays + 1);
 
   const totalTravelers = input.adults + input.children;
+  const childrenBilledLikeAdults = childrenBillableAsAdultsForStayAndBoating(input);
+  const childrenFreeForStayBoat = input.children - childrenBilledLikeAdults;
 
   const items: QuoteLineItem[] = [];
 
   const stayRate = pricing.stay.perNight[input.stayTier];
-  const stayWeightedPeople =
-    input.adults + input.children * pricing.children.stayDiscountRate;
+  /** Under 10: no stay charge; 10+: same as adult (ignores legacy stayDiscountRate for children). */
+  const stayWeightedPeople = input.adults + childrenBilledLikeAdults;
   const stayAmount = stayRate * nights * stayWeightedPeople;
   if (stayAmount > 0) {
     items.push({
       code: "stay",
-      label: `Stay (${input.stayTier})`,
+      label: `Stay (${formatStayTierLabel(input.stayTier)})`,
       amount: stayAmount,
-      meta: { nights, perNight: stayRate, weightedPeople: stayWeightedPeople },
+      meta: {
+        nights,
+        perNight: stayRate,
+        weightedPeople: stayWeightedPeople,
+        adults: input.adults,
+        childrenBilledLikeAdults,
+        childrenFreeForStayBoat,
+      },
     });
   }
 
-  const vehicleRate = pricing.vehicle.perDay[input.vehicleType] ?? 0;
+  const { rate: vehicleRate, band: vehicleBand } = resolveVehiclePerDayRate(
+    input.vehicleType,
+    pricing,
+    input.destinations,
+  );
   const vehicleAmount = vehicleRate * days;
   if (vehicleAmount > 0) {
     items.push({
       code: "vehicle",
-      label: `Vehicle (${input.vehicleType})`,
+      label: formatVehicleQuoteLabel(input.vehicleType, vehicleBand),
       amount: vehicleAmount,
-      meta: { days, perDay: vehicleRate },
+      meta: { days, perDay: vehicleRate, routeBand: vehicleBand },
     });
   }
 
@@ -95,8 +122,8 @@ export function computeQuote(input: QuoteInput, pricing: PricingConfig): QuoteRe
   let boatingAmount = 0;
   if (input.boating !== "none") {
     const cfg = pricing.boating[input.boating];
-    const boatingWeightedPeople =
-      input.adults + input.children * pricing.children.boatingDiscountRate;
+    /** Same age rule as stay: under 10 free on per-person boat share; 10+ pays full per-person slot. */
+    const boatingWeightedPeople = input.adults + childrenBilledLikeAdults;
     boatingAmount = Math.max(cfg.minimumTotal, cfg.perPerson * boatingWeightedPeople);
     items.push({
       code: "boating",
@@ -106,6 +133,9 @@ export function computeQuote(input: QuoteInput, pricing: PricingConfig): QuoteRe
         perPerson: cfg.perPerson,
         minimumTotal: cfg.minimumTotal,
         weightedPeople: boatingWeightedPeople,
+        adults: input.adults,
+        childrenBilledLikeAdults,
+        childrenFreeForStayBoat,
       },
     });
   }

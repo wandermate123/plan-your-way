@@ -923,13 +923,39 @@ button:disabled{
   line-height: 1.5;
   font-weight: 400;
 }
+/* FAQ body stays in DOM for print/PDF; hidden on screen until expanded */
+.faqItem:not(.expanded) .faqAnswer { display: none; }
+
+/* Final itinerary day body: in DOM for print; collapsed on screen via .expanded */
+.finalItineraryDayDetails { display: none; }
+.finalItineraryDay.expanded .finalItineraryDayDetails { display: block; }
+
+/* Step 3 suggested itinerary — details in DOM for print */
+.step3ItineraryDayDetails { display: none; }
+.step3ItineraryDay.open .step3ItineraryDayDetails { display: block; }
 
 @media print {
+  html, body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+  .container { overflow: visible !important; max-width: 100% !important; }
+
   .header, .pill, .finalActionGrid, .finalBookingActions, .finalStartOver, .finalFloatingChat, .assistantFab,
-  .assistantBackdrop, .assistantPanel, .card h2:first-child,
+  .assistantBackdrop, .assistantPanel,
+  /* Only hide the wizard card title when printing the step flow, not section titles on the final page */
+  .grid > .card > h2:first-of-type,
   button, .finalSidebar .card:last-of-type { display: none !important; }
   .finalView { max-width: 100%; }
   .finalLayout { grid-template-columns: 1fr; }
+
+  /* Expand collapsible content for PDF (DOM is always present; screen hides with display:none) */
+  .faqItem .faqAnswer { display: block !important; }
+  .finalItineraryDayDetails { display: block !important; }
+  .step3ItineraryDayDetails { display: block !important; }
+  .finalItineraryDrop { transform: rotate(180deg); }
+  .faqItem .faqDrop { transform: rotate(180deg); }
   /* Dark blue text for readable PDF */
   body, .card, .finalView, .finalSection, .finalOverviewItem, .finalItineraryDayTitle, .finalPriceItem,
   .list li, .step1PlaceLabel, .step2OptionTitle, .step3AddonTitle, .step3ReviewItem, .faqQuestion,

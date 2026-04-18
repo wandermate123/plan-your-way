@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { RateCardPreview } from "./rate-card-preview";
 
 export default function AdminPricingPage() {
   const [secret, setSecret] = useState("");
@@ -120,6 +121,8 @@ export default function AdminPricingPage() {
             }}
           />
         </div>
+
+        <RateCardPreview raw={jsonText} />
 
         {status ? (
           <p className="footerNote" style={{ marginTop: 12 }}>

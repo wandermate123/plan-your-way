@@ -5,10 +5,6 @@ import { AssistantReplySchema, TravelAssistantRequestSchema } from "@/lib/travel
 import { buildTravelAssistantSystemPrompt } from "@/lib/travel-assistant-prompt";
 import { logApiEvent } from "@/lib/observability";
 import { checkRateLimit } from "@/lib/rate-limit";
-import {
-  RATE_LIMIT_TRAVEL_ASSISTANT_MAX,
-  RATE_LIMIT_WINDOW_MS,
-} from "@/lib/rate-limit-config";
 
 /** Ensures `.env` / `.env.local` are applied even if this module loaded before Next injected them. */
 loadEnvConfig(process.cwd());
@@ -280,12 +276,7 @@ export async function POST(req: Request) {
   const requestId = crypto.randomUUID();
   const start = performance.now();
 
-  const limit = checkRateLimit(
-    req,
-    "/api/travel-assistant",
-    RATE_LIMIT_TRAVEL_ASSISTANT_MAX,
-    RATE_LIMIT_WINDOW_MS,
-  );
+  const limit = checkRateLimit(req, "/api/travel-assistant", 20, 60_000);
   if (!limit.ok) {
     logApiEvent("warn", {
       route: "/api/travel-assistant",

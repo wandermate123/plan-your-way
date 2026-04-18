@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { readPricingConfig, writePricingConfig } from "@/lib/storage";
+import { validatePricingProduction } from "@/lib/pricing-validate";
 import { PricingConfigSchema } from "@/lib/validation";
 
 function unauthorized() {
@@ -30,6 +31,13 @@ export async function PUT(req: Request) {
   try {
     const body = await req.json();
     const next = PricingConfigSchema.parse(body);
+    const prod = validatePricingProduction(next);
+    if (!prod.ok) {
+      return NextResponse.json(
+        { ok: false, error: `Pricing failed production checks: ${prod.errors.join(" ")}` },
+        { status: 400 },
+      );
+    }
     await writePricingConfig(next);
     return NextResponse.json({ ok: true });
   } catch (err) {

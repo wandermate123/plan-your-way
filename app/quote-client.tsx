@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import type { QuoteAddonOption, QuoteVehicleOption } from "@/lib/quote-ui-options";
+import { formatStayTierLabel } from "@/lib/validation";
 
 export type { QuoteAddonOption, QuoteVehicleOption } from "@/lib/quote-ui-options";
 import {
@@ -48,6 +49,16 @@ type QuoteInput = {
   boating: "none" | "sunrise" | "evening";
   addons: string[];
 };
+
+function formatTravelersLine(input: QuoteInput) {
+  const adultPart = `${input.adults} adult${input.adults === 1 ? "" : "s"}`;
+  if (input.children <= 0) return adultPart;
+  const ages =
+    input.childrenAges && input.childrenAges.length === input.children
+      ? ` (ages ${input.childrenAges.join(", ")})`
+      : "";
+  return `${adultPart}, ${input.children} child${input.children === 1 ? "" : "ren"}${ages}`;
+}
 
 type QuoteResult = {
   currency: string;
@@ -166,6 +177,7 @@ export default function QuoteClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<QuoteResult | null>(null);
+  const [pricingVersion, setPricingVersion] = useState<number | null>(null);
   const [itinerary, setItinerary] = useState<ItineraryDay[] | null>(null);
   const [itineraryBaseline, setItineraryBaseline] = useState<ItineraryDay[] | null>(null);
   const [openDay, setOpenDay] = useState<number | null>(1);
@@ -230,7 +242,9 @@ export default function QuoteClient({
   function handleStepNext() {
     setStepError(null);
     if (step === 1 && !step1Valid) {
-      setStepError("Please fill all required fields: check dates (departure must be on or after arrival), adults, and child ages if travelling with children.");
+      setStepError(
+        "Please fill all required fields: check dates (departure must be on or after arrival), adults, and one age per child (required when travelling with children).",
+      );
       return;
     }
     if (step === 2 && !step2Valid) {
@@ -280,6 +294,7 @@ export default function QuoteClient({
     setLoading(true);
     setError(null);
     setQuote(null);
+    setPricingVersion(null);
     setItinerary(null);
     setItineraryBaseline(null);
     try {
@@ -291,6 +306,7 @@ export default function QuoteClient({
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error ?? "Failed to compute quote");
       setQuote(data.quote);
+      setPricingVersion(typeof data.pricingVersion === "number" ? data.pricingVersion : null);
       if (data.itinerary?.days) {
         const days = data.itinerary.days as ItineraryDay[];
         setItinerary(days);
@@ -335,9 +351,9 @@ function bookingWhatsAppLink(input: QuoteInput, quote: QuoteResult) {
     `Hi Wandermate! I'd like to book this trip:`,
     ``,
     `Dates: ${input.arrivalDate} to ${input.departureDate}`,
-    `Travelers: ${input.adults} adults${input.children > 0 ? `, ${input.children} children` : ""}`,
+    `Travelers: ${formatTravelersLine(input)}`,
     `Destinations: ${input.destinations.map((d) => d.charAt(0).toUpperCase() + d.slice(1)).join(", ")}`,
-    `Stay: ${input.stayTier} | Vehicle: ${formatVehicleLabel(input.vehicleType)} | Guide: ${input.guideType} | Boat: ${input.boating}`,
+    `Stay: ${formatStayTierLabel(input.stayTier)} | Vehicle: ${formatVehicleLabel(input.vehicleType)} | Guide: ${input.guideType} | Boat: ${input.boating}`,
     `Add-ons: ${input.addons.length > 0 ? input.addons.map((a) => addonTitleById[a] ?? a).join(", ") : "None"}`,
     ``,
     `Quoted total: ${quote.currency} ${quote.total}`,
@@ -396,7 +412,7 @@ function chatSupportWhatsAppLink() {
                     </div>
                     <div className="finalOverviewItem">
                       <span className="finalOverviewIcon"><IconUsers /></span>
-                      <span><strong>Travelers:</strong> {input.adults} adults{input.children > 0 ? `, ${input.children} children` : ""}</span>
+                      <span><strong>Travelers:</strong> {formatTravelersLine(input)}</span>
                     </div>
                     <div className="finalOverviewItem">
                       <span className="finalOverviewIcon"><IconCar /></span>
@@ -404,7 +420,7 @@ function chatSupportWhatsAppLink() {
                     </div>
                     <div className="finalOverviewItem">
                       <span className="finalOverviewIcon"><IconBuilding2 /></span>
-                      <span><strong>Accommodation:</strong> {input.stayTier === "twoStar" ? "2 Star" : input.stayTier === "threeFourStar" ? "3/4 Star" : input.stayTier === "fiveStar" ? "5 Star" : "Heritage"}</span>
+                      <span><strong>Accommodation:</strong> {formatStayTierLabel(input.stayTier)}</span>
                     </div>
                     <div className="finalOverviewItem">
                       <span className="finalOverviewIcon"><IconTarget /></span>
@@ -443,17 +459,15 @@ function chatSupportWhatsAppLink() {
                               <span className="finalItineraryDate">{d.dateLabel}</span>
                               <span className="finalItineraryDrop"><IconChevronDown /></span>
                             </div>
-                            {isExpanded && (
-                              <>
-                                <div className="finalItineraryDayCity">{d.city}</div>
-                                <div className="finalItineraryDayTitle">{d.title}</div>
-                                <ul className="finalItineraryHighlights">
-                                  {d.highlights.map((h, idx) => (
-                                    <li key={idx}>{h}</li>
-                                  ))}
-                                </ul>
-                              </>
-                            )}
+                            <div className="finalItineraryDayDetails" aria-hidden={!isExpanded}>
+                              <div className="finalItineraryDayCity">{d.city}</div>
+                              <div className="finalItineraryDayTitle">{d.title}</div>
+                              <ul className="finalItineraryHighlights">
+                                {d.highlights.map((h, idx) => (
+                                  <li key={idx}>{h}</li>
+                                ))}
+                              </ul>
+                            </div>
                           </div>
                         );
                       })}
@@ -521,6 +535,11 @@ function chatSupportWhatsAppLink() {
                 <p className="finalSummaryNote">
                   {quote.travelers.total} travelers • {quote.nights} nights • {quote.days} days
                 </p>
+                {pricingVersion != null ? (
+                  <p className="muted" style={{ fontSize: 12, marginTop: 6, marginBottom: 0 }}>
+                    Rate card version <strong>{pricingVersion}</strong>
+                  </p>
+                ) : null}
 
                 <div className="finalBookingActions">
                   <button
@@ -555,6 +574,7 @@ function chatSupportWhatsAppLink() {
                 className="finalStartOver"
                 onClick={() => {
                   setQuote(null);
+                  setPricingVersion(null);
                   setItinerary(null);
                   setItineraryBaseline(null);
                   setFinalExpandedDays(new Set([1]));
@@ -609,7 +629,7 @@ function chatSupportWhatsAppLink() {
                     </svg>
                   </span>
                 </div>
-                {expandedFaq === i && <div className="faqAnswer">{faq.a}</div>}
+                <div className="faqAnswer">{faq.a}</div>
               </div>
             ))}
           </div>
@@ -702,11 +722,11 @@ function chatSupportWhatsAppLink() {
                       onChange={(e) => {
                         const n = Math.max(0, Math.min(50, Number(e.target.value) || 0));
                         setInput((prev) => {
-                          const ages = prev.childrenAges ?? Array(prev.children).fill(5);
+                          const ages = prev.childrenAges ?? Array(prev.children).fill(8);
                           const newAges =
                             n < ages.length
                               ? ages.slice(0, n)
-                              : [...ages, ...Array(n - ages.length).fill(5)];
+                              : [...ages, ...Array(n - ages.length).fill(8)];
                           return { ...prev, children: n, childrenAges: newAges };
                         });
                       }}
@@ -718,7 +738,10 @@ function chatSupportWhatsAppLink() {
 
                 {input.children > 0 && (
                   <div className="step1ChildrenAges">
-                    <label>Child ages (years) <span className="required">*</span></label>
+                    <label>Age of each child (years) <span className="required">*</span></label>
+                    <p className="muted" style={{ fontSize: 12, marginTop: 4, marginBottom: 8 }}>
+                      Under 10: no stay or boat charge on this quote. Age 10 and above is priced like an adult for stay and boating.
+                    </p>
                     <div className="step1AgeChips">
                       {Array.from({ length: input.children }, (_, i) => (
                         <div key={i} className="step1AgeChip">
@@ -727,11 +750,11 @@ function chatSupportWhatsAppLink() {
                             type="number"
                             min={0}
                             max={17}
-                            value={input.childrenAges?.[i] ?? 5}
+                            value={input.childrenAges?.[i] ?? 8}
                             onChange={(e) => {
                               const age = Math.max(0, Math.min(17, Number(e.target.value) || 0));
                               setInput((prev) => {
-                                const ages = [...(prev.childrenAges ?? Array(prev.children).fill(5))];
+                                const ages = [...(prev.childrenAges ?? Array(prev.children).fill(8))];
                                 ages[i] = age;
                                 return { ...prev, childrenAges: ages };
                               });
@@ -818,7 +841,7 @@ function chatSupportWhatsAppLink() {
             <div className="step2SectionBody">
               {[
                 { value: "twoStar" as const, Icon: IconBuilding2, title: "2 Star", tagline: "Simple, budget-friendly" },
-                { value: "threeFourStar" as const, Icon: IconStar, title: "3/4 Star", tagline: "Comfort & value" },
+                { value: "threeFourStar" as const, Icon: IconStar, title: "3 Star", tagline: "Comfort & value" },
                 { value: "fiveStar" as const, Icon: IconSparkles, title: "5 Star", tagline: "Luxury & amenities" },
                 { value: "heritage" as const, Icon: IconLandmark, title: "Heritage hotel", tagline: "Character & tradition" },
               ].map((opt) => {
@@ -975,6 +998,10 @@ function chatSupportWhatsAppLink() {
               <div className="step2SectionBody">
                 <div className="step3ReviewList">
                   <div className="step3ReviewItem">
+                    <span className="step3ReviewIcon"><IconUsers /></span>
+                    <span><strong>Group:</strong> {formatTravelersLine(input)}</span>
+                  </div>
+                  <div className="step3ReviewItem">
                     <span className="step3ReviewIcon"><IconMapPin /></span>
                     <span><strong>Destinations:</strong> {input.destinations.map((d) => d.charAt(0).toUpperCase() + d.slice(1)).join(", ")}</span>
                   </div>
@@ -992,7 +1019,7 @@ function chatSupportWhatsAppLink() {
                   </div>
                   <div className="step3ReviewItem">
                     <span className="step3ReviewIcon"><IconBuilding2 /></span>
-                    <span><strong>Stay:</strong> {input.stayTier === "twoStar" ? "2 Star" : input.stayTier === "threeFourStar" ? "3/4 Star" : input.stayTier === "fiveStar" ? "5 Star" : "Heritage"}</span>
+                    <span><strong>Stay:</strong> {formatStayTierLabel(input.stayTier)}</span>
                   </div>
                   <div className="step3ReviewItem">
                     <span className="step3ReviewIcon"><IconCheck /></span>
@@ -1044,6 +1071,7 @@ function chatSupportWhatsAppLink() {
               setInput(makeInitialQuoteInput(defaultVehicleType));
               setQuote(null);
               setError(null);
+              setPricingVersion(null);
               setItinerary(null);
               setItineraryBaseline(null);
               setStep(1);
@@ -1171,6 +1199,11 @@ function chatSupportWhatsAppLink() {
 
             <div className="footerNote">
               This quote is computed instantly by your pricing rules (no staff intervention).
+              {pricingVersion != null ? (
+                <span style={{ display: "block", marginTop: 6 }}>
+                  Rate card version: <strong>{pricingVersion}</strong>
+                </span>
+              ) : null}
             </div>
           </>
           );
@@ -1181,25 +1214,27 @@ function chatSupportWhatsAppLink() {
       {itinerary && itinerary.length > 0 ? (
         <section className="card" style={{ marginTop: 16 }}>
           <h2>Suggested itinerary</h2>
-          <ul className="list" style={{ marginTop: 4 }}>
-            {itinerary.map((d) => (
-              <li
-                key={d.dayNumber}
-                style={{ flexDirection: "column", alignItems: "flex-start", cursor: "pointer" }}
-                onClick={() => setOpenDay((prev) => (prev === d.dayNumber ? null : d.dayNumber))}
-              >
-                <span
-                  style={{ display: "flex", justifyContent: "space-between", width: "100%" }}
+          <ul className="list step3ItineraryList" style={{ marginTop: 4 }}>
+            {itinerary.map((d) => {
+              const open = openDay === d.dayNumber;
+              return (
+                <li
+                  key={d.dayNumber}
+                  className={`step3ItineraryDay ${open ? "open" : ""}`}
+                  style={{ flexDirection: "column", alignItems: "flex-start", cursor: "pointer" }}
+                  onClick={() => setOpenDay((prev) => (prev === d.dayNumber ? null : d.dayNumber))}
                 >
-                  <strong>
-                    Day {d.dayNumber}: {d.city} — {d.title}
-                  </strong>
-                  <span className="muted" style={{ fontSize: 12 }}>
-                    {openDay === d.dayNumber ? "Hide" : "View"}
+                  <span
+                    style={{ display: "flex", justifyContent: "space-between", width: "100%" }}
+                  >
+                    <strong>
+                      Day {d.dayNumber}: {d.city} — {d.title}
+                    </strong>
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      {open ? "Hide" : "View"}
+                    </span>
                   </span>
-                </span>
-                {openDay === d.dayNumber ? (
-                  <>
+                  <div className="step3ItineraryDayDetails">
                     <span className="muted" style={{ fontSize: 12, marginTop: 2 }}>
                       {d.dateLabel}
                     </span>
@@ -1210,10 +1245,10 @@ function chatSupportWhatsAppLink() {
                         </li>
                       ))}
                     </ul>
-                  </>
-                ) : null}
-              </li>
-            ))}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </section>
       ) : null}
@@ -1264,7 +1299,7 @@ function chatSupportWhatsAppLink() {
                 <span>{faq.q}</span>
                 <span className="faqDrop"><IconChevronDown /></span>
               </div>
-              {expandedFaq === i && <div className="faqAnswer">{faq.a}</div>}
+              <div className="faqAnswer">{faq.a}</div>
             </div>
           ))}
         </div>
